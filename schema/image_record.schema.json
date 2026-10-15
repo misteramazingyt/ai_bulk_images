@@ -1,0 +1,826 @@
+{
+  "$defs": {
+    "AffectCode": {
+      "properties": {
+        "coder_id": {
+          "title": "Coder Id",
+          "type": "string"
+        },
+        "coder_type": {
+          "enum": [
+            "human",
+            "model",
+            "consensus"
+          ],
+          "title": "Coder Type",
+          "type": "string"
+        },
+        "valence": {
+          "maximum": 9,
+          "minimum": 1,
+          "title": "Valence",
+          "type": "number"
+        },
+        "arousal": {
+          "maximum": 9,
+          "minimum": 1,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "dominance": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dominance"
+        },
+        "primary_emotion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Primary Emotion"
+        },
+        "secondary_emotion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Secondary Emotion"
+        },
+        "codebook_version": {
+          "title": "Codebook Version",
+          "type": "string"
+        },
+        "coded_at": {
+          "format": "date-time",
+          "title": "Coded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "coder_id",
+        "coder_type",
+        "valence",
+        "arousal",
+        "codebook_version"
+      ],
+      "title": "AffectCode",
+      "type": "object"
+    },
+    "Corpus": {
+      "enum": [
+        "G",
+        "C",
+        "V"
+      ],
+      "title": "Corpus",
+      "type": "string"
+    },
+    "Criterion": {
+      "description": "AI-generation evidence codes (METHODOLOGY \u00a73).",
+      "enum": [
+        "C2PA",
+        "META",
+        "DATASET",
+        "FACTCHECK",
+        "PLATFORM",
+        "DECLARED",
+        "DETECTOR"
+      ],
+      "title": "Criterion",
+      "type": "string"
+    },
+    "DetectionEvidence": {
+      "properties": {
+        "criterion": {
+          "$ref": "#/$defs/Criterion"
+        },
+        "method": {
+          "description": "e.g. 'png_text_chunk:parameters', 'subreddit_rule:r/midjourney'",
+          "title": "Method",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "iptc_digital_source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Iptc Digital Source Type"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "criterion",
+        "method"
+      ],
+      "title": "DetectionEvidence",
+      "type": "object"
+    },
+    "EngagementSnapshot": {
+      "properties": {
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "age_hours": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age Hours"
+        },
+        "raw": {
+          "additionalProperties": true,
+          "title": "Raw",
+          "type": "object"
+        },
+        "standard": {
+          "$ref": "#/$defs/StandardEngagement"
+        }
+      },
+      "title": "EngagementSnapshot",
+      "type": "object"
+    },
+    "ImageContent": {
+      "properties": {
+        "media_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL (or hf-zip:// locator) the bytes were fetched from",
+          "title": "Media Url"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "phash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "64-bit perceptual hash, hex",
+          "title": "Phash"
+        },
+        "dhash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "64-bit difference hash, hex",
+          "title": "Dhash"
+        },
+        "mime": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mime"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "n_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Bytes"
+        },
+        "local_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Content-addressed cache path, only if caching is permitted",
+          "title": "Local Path"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetched At"
+        },
+        "fetch_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetch Error"
+        }
+      },
+      "title": "ImageContent",
+      "type": "object"
+    },
+    "MotifCode": {
+      "properties": {
+        "code_id": {
+          "description": "Codebook id, e.g. VM06 or PT22",
+          "title": "Code Id",
+          "type": "string"
+        },
+        "present": {
+          "title": "Present",
+          "type": "boolean"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Model score before thresholding",
+          "title": "Score"
+        },
+        "coder_id": {
+          "title": "Coder Id",
+          "type": "string"
+        },
+        "coder_type": {
+          "enum": [
+            "human",
+            "model",
+            "consensus"
+          ],
+          "title": "Coder Type",
+          "type": "string"
+        },
+        "codebook_version": {
+          "title": "Codebook Version",
+          "type": "string"
+        },
+        "validated": {
+          "default": false,
+          "description": "True only for model coders that passed METHODOLOGY \u00a74.3 for this code",
+          "title": "Validated",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "coded_at": {
+          "format": "date-time",
+          "title": "Coded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code_id",
+        "present",
+        "coder_id",
+        "coder_type",
+        "codebook_version"
+      ],
+      "title": "MotifCode",
+      "type": "object"
+    },
+    "PostInfo": {
+      "properties": {
+        "created_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Caption/title/prompt; may be omitted where terms require",
+          "title": "Text"
+        },
+        "alt_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alt Text"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "hashtags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hashtags",
+          "type": "array"
+        },
+        "author_pseudonym": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HMAC-SHA256(author id, project salt); never the raw handle",
+          "title": "Author Pseudonym"
+        },
+        "community": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Subreddit, feed, category",
+          "title": "Community"
+        },
+        "platform_labels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Platform Labels",
+          "type": "array"
+        },
+        "nsfw": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nsfw"
+        }
+      },
+      "title": "PostInfo",
+      "type": "object"
+    },
+    "Rights": {
+      "properties": {
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "terms_basis": {
+          "description": "Why collection is permitted, e.g. 'CC0-1.0', 'Reddit Data API Terms'",
+          "title": "Terms Basis",
+          "type": "string"
+        },
+        "may_cache_bytes": {
+          "default": false,
+          "title": "May Cache Bytes",
+          "type": "boolean"
+        },
+        "may_redistribute_bytes": {
+          "default": false,
+          "title": "May Redistribute Bytes",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "terms_basis"
+      ],
+      "title": "Rights",
+      "type": "object"
+    },
+    "SourceInfo": {
+      "properties": {
+        "platform": {
+          "description": "reddit | bluesky | wikimedia_commons | diffusiondb | factcheck_claimreview | ...",
+          "title": "Platform",
+          "type": "string"
+        },
+        "corpus": {
+          "$ref": "#/$defs/Corpus"
+        },
+        "sampling_frame": {
+          "title": "Sampling Frame",
+          "type": "string"
+        },
+        "collector": {
+          "title": "Collector",
+          "type": "string"
+        },
+        "collector_version": {
+          "title": "Collector Version",
+          "type": "string"
+        },
+        "native_id": {
+          "title": "Native Id",
+          "type": "string"
+        },
+        "post_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Url"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Query / subreddit / category / filter that matched this item",
+          "title": "Query"
+        },
+        "collected_at": {
+          "format": "date-time",
+          "title": "Collected At",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        }
+      },
+      "required": [
+        "platform",
+        "corpus",
+        "sampling_frame",
+        "collector",
+        "collector_version",
+        "native_id"
+      ],
+      "title": "SourceInfo",
+      "type": "object"
+    },
+    "StandardEngagement": {
+      "properties": {
+        "reactions": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reactions"
+        },
+        "amplifications": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amplifications"
+        },
+        "replies": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replies"
+        },
+        "views": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Views"
+        },
+        "audience": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audience"
+        }
+      },
+      "title": "StandardEngagement",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "record_id": {
+      "description": "'<platform>:<native_id>:<image_index>'",
+      "title": "Record Id",
+      "type": "string"
+    },
+    "image_index": {
+      "default": 0,
+      "title": "Image Index",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceInfo"
+    },
+    "post": {
+      "$ref": "#/$defs/PostInfo"
+    },
+    "image": {
+      "$ref": "#/$defs/ImageContent"
+    },
+    "rights": {
+      "$ref": "#/$defs/Rights"
+    },
+    "generator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Generator name if known (e.g. 'Stable Diffusion v1')",
+      "title": "Generator"
+    },
+    "prompt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prompt"
+    },
+    "ai_evidence": {
+      "items": {
+        "$ref": "#/$defs/DetectionEvidence"
+      },
+      "title": "Ai Evidence",
+      "type": "array"
+    },
+    "engagement": {
+      "items": {
+        "$ref": "#/$defs/EngagementSnapshot"
+      },
+      "title": "Engagement",
+      "type": "array"
+    },
+    "motif_codes": {
+      "items": {
+        "$ref": "#/$defs/MotifCode"
+      },
+      "title": "Motif Codes",
+      "type": "array"
+    },
+    "affect_codes": {
+      "items": {
+        "$ref": "#/$defs/AffectCode"
+      },
+      "title": "Affect Codes",
+      "type": "array"
+    },
+    "cluster_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cluster Id"
+    },
+    "exclusion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "If set, record is excluded from analysis (reason)",
+      "title": "Exclusion"
+    }
+  },
+  "required": [
+    "record_id",
+    "source",
+    "rights"
+  ],
+  "title": "ImageRecord",
+  "type": "object"
+}

@@ -1,0 +1,55 @@
+# Copy to config.yaml (git-ignored). Each frame is a documented sampling frame
+# (docs/METHODOLOGY.md §2.1) and is frozen into the run manifest.
+
+http:
+  user_agent: "aibi-research/0.1 (academic research on AI imagery; contact: you@example.org)"
+  min_interval_seconds: 1.0
+  per_host_interval_seconds:
+    oauth.reddit.com: 1.0          # Reddit OAuth limit: 100 QPM per client
+    commons.wikimedia.org: 1.0
+    wikimedia.org: 0.5
+
+frames:
+  - frame_id: G-diffusiondb-pilot
+    source: diffusiondb
+    corpus: G
+    limit: 200
+    seed: 20261015
+    params:
+      mode: prescreen+random       # half lexicon-prescreened, half random comparison
+      max_nsfw: 0.5
+
+  - frame_id: C-reddit-ai-subs-new
+    source: reddit
+    corpus: C
+    limit: 250                     # per subreddit
+    params:
+      subreddits: [midjourney, StableDiffusion, aiArt, dalle2]
+      sort: new                    # 'top'/'hot' are engagement-selected: descriptive use only
+
+  - frame_id: C-bluesky-ai-hashtags
+    source: bluesky
+    corpus: C
+    limit: 250                     # per query
+    params:
+      queries: ["#aiart", "#midjourney", "#aiimage", "#stablediffusion", "\"ai generated\""]
+      sort: latest
+      since: "2026-09-01T00:00:00Z"
+      until: "2026-10-01T00:00:00Z"
+
+  - frame_id: C-commons-ai-category
+    source: wikimedia_commons
+    corpus: C
+    limit: 300
+    params:
+      categories: ["Category:AI-generated images"]
+      depth: 1
+      pageviews: true
+
+  - frame_id: V-factcheck-ai-images
+    source: factcheck_claimreview
+    corpus: V
+    limit: 200                     # per query
+    params:
+      queries: ["AI-generated image", "AI generated photo", "image created with artificial intelligence"]
+      fetch_og_image: true

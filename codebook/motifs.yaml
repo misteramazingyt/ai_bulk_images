@@ -1,0 +1,202 @@
+# Machine-readable codebook. Human-facing guide: docs/CODEBOOK.md
+# Each code must stay stable once data has been coded against it; change
+# definitions only via a version bump + docs/AMENDMENTS.md entry.
+codebook_version: "0.1.0"
+
+coding_instructions: >
+  Code what is visibly depicted (visual motifs) and what the image does
+  rhetorically (persuasion techniques). Code presence (1) only when the
+  inclusion criterion is met and no exclusion applies. When in doubt, code 0
+  and add a note. Affect: rate the response the image is DESIGNED to elicit
+  in a general adult viewer, not your personal reaction.
+
+visual_motifs:
+  - id: VM01
+    name: national_symbols
+    definition: National flags, emblems, coats of arms, national personifications, or national colour schemes used as a dominant compositional element.
+    include: Flag held, draped, or forming the background; emblem centred; figure clothed in flag.
+    exclude: Incidental small flags in a crowded street scene; sports kits without nationalist framing.
+    lexicon: [flag, patriot, patriotic, national, homeland, motherland, fatherland, eagle emblem]
+    clip_prompts: ["a patriotic image dominated by a national flag", "a figure draped in a national flag", "a national emblem in the center of a poster"]
+  - id: VM02
+    name: leader_glorification
+    definition: A real, identifiable political, military, or religious leader shown idealized - heroic, monumental, superhuman, saintly, or triumphant.
+    include: Low-angle heroic portrait, halo or divine light, muscular or warrior rendering, statue-like monumentality.
+    exclude: Neutral press-style portraits; obviously satirical depictions (code VM20 instead).
+    lexicon: [heroic portrait, as a god, as a saint, as superman, triumphant, monumental statue of]
+    clip_prompts: ["a heroic idealized portrait of a political leader", "a politician depicted as a god with divine light", "a leader depicted as a muscular warrior hero"]
+  - id: VM03
+    name: leader_degradation
+    definition: A real, identifiable political figure shown humiliated, arrested, imprisoned, injured, diseased, criminalized, or in degrading circumstances.
+    include: Arrest/perp-walk scenes, prison garb, crying/begging, physical decline, being attacked.
+    exclude: Abstract caricature without degrading situation (code VM20).
+    lexicon: [arrested, in prison, in jail, handcuffed, perp walk, mugshot, prison jumpsuit]
+    clip_prompts: ["a politician being arrested by police", "a political leader in prison clothes behind bars", "a politician crying and humiliated"]
+  - id: VM04
+    name: military_force
+    definition: Soldiers, weapons, armoured vehicles, warships, aircraft, or military formations as a central element.
+    include: Troops in formation, tanks, missiles, parades, combat scenes.
+    exclude: Toy or fantasy weapons in clearly non-political fantasy art (code only if real-world militaries are referenced).
+    lexicon: [soldier, army, troops, tank, missile, military, warship, fighter jet, battlefield]
+    clip_prompts: ["soldiers with rifles in formation", "tanks and armored vehicles in a military parade", "a battlefield with soldiers and weapons"]
+  - id: VM05
+    name: outgroup_dehumanization
+    definition: An identifiable ethnic, national, religious, political, or social group depicted as animals, vermin, insects, disease, monsters, or otherwise subhuman.
+    include: Group-coded figures (clothing, symbols, captions) rendered as rats, cockroaches, apes, parasites, zombies, demons.
+    exclude: Generic fantasy monsters not linked to any real group.
+    lexicon: [vermin, rats, cockroaches, parasites, subhuman, invaders as monsters, horde of]
+    clip_prompts: ["people of a group depicted as rats or vermin", "a caricature depicting humans as monsters and parasites", "a dehumanizing propaganda image showing people as insects"]
+  - id: VM06
+    name: vulnerable_victims
+    definition: Children, elderly people, pregnant women, animals, or injured civilians shown in distress, danger, or suffering.
+    include: Crying or injured child, child alone in disaster, elderly person in rubble, rescued pet in flood.
+    exclude: Children in neutral or happy scenes.
+    lexicon: [crying child, injured child, orphan, refugee child, starving, wounded civilian, little girl in flood]
+    clip_prompts: ["a crying child in a disaster zone", "an injured child among rubble", "a little girl holding a puppy in a flood"]
+  - id: VM07
+    name: destruction_catastrophe
+    definition: Ruins, explosions, fire, floods, collapsing buildings, or apocalyptic landscapes as the main subject or backdrop.
+    include: Bombed city, burning landmark, smoke over a recognisable building, disaster aftermath.
+    exclude: Small controlled fires (campfire, candles) or abstract fantasy landscapes without catastrophe.
+    lexicon: [explosion, ruins, destroyed city, burning, apocalypse, bombing, flood, smoke over]
+    clip_prompts: ["an explosion near a government building", "a destroyed city in ruins after bombing", "an apocalyptic burning landscape"]
+  - id: VM08
+    name: religious_iconography
+    definition: Religious figures, symbols, sacred sites, or sacral visual conventions (halos, divine rays, angels) used to sanctify a person, group, or cause.
+    include: Cross, crescent, star of David, icons, angels, saints, divine light on a political subject.
+    exclude: Neutral documentary images of places of worship.
+    lexicon: [jesus, god, angel, saint, holy, divine, crusade, prophet, cross, halo]
+    clip_prompts: ["a religious icon painting with halo and divine light", "an angel blessing soldiers", "Jesus standing beside a political figure"]
+  - id: VM09
+    name: crowd_mobilization
+    definition: Large unified crowds, rallies, marches, or masses acting in concert.
+    include: Sea of people with flags or signs, marching columns, mass rally.
+    exclude: Incidental crowds (shopping street, concert audience) without political framing.
+    lexicon: [rally, protest, march, crowd, revolution, uprising, masses, mob]
+    clip_prompts: ["a massive political rally with a crowd waving flags", "a huge crowd of protesters marching", "masses of people united in revolution"]
+  - id: VM10
+    name: martyrdom_sacrifice
+    definition: Death, dying, funerals, or sacrifice framed as noble, heroic, or redemptive for a cause.
+    include: Fallen hero in pietà pose, flag-draped coffins, heroic death in battle.
+    exclude: Gore without sacrificial framing (code VM18).
+    lexicon: [martyr, sacrifice, fallen hero, funeral, coffin, died for]
+    clip_prompts: ["a fallen soldier depicted as a heroic martyr", "flag-draped coffins at a funeral", "a heroic sacrifice in battle"]
+  - id: VM11
+    name: threat_invasion
+    definition: An encroaching, invading, or infiltrating threat to an in-group - hordes at borders, enemy forces approaching, contamination imagery.
+    include: Masses crossing a border framed as threatening, enemy shadow over a nation, boats overwhelming a coast.
+    exclude: Neutral documentary migration imagery without threat framing.
+    lexicon: [invasion, invaders, horde, border crisis, flood of migrants, takeover, replacement]
+    clip_prompts: ["a menacing horde invading across a border", "an enemy army approaching a peaceful town", "a dark shadow looming over a country"]
+  - id: VM12
+    name: golden_age_nostalgia
+    definition: Idealized past or pastoral in-group life - traditional family, rural idyll, lost homeland, past greatness.
+    include: Retro-styled perfect family, wheat fields with traditional dress, glorious historical reconstruction.
+    exclude: Generic landscapes with no in-group/identity framing.
+    lexicon: [traditional family, golden age, the good old days, pastoral, heritage, ancestors]
+    clip_prompts: ["an idealized traditional family in a pastoral countryside", "a nostalgic golden age scene of a nation's past", "a perfect retro 1950s family"]
+  - id: VM13
+    name: conspiratorial_symbolism
+    definition: Imagery suggesting hidden control - puppet masters, hidden hands, all-seeing eyes, shadowy elites, octopus/tentacle-over-globe tropes.
+    include: Puppet strings from a figure, tentacles over a globe, cabal around a table.
+    exclude: Neutral use of eye or pyramid as decoration without control framing.
+    note: Many such tropes are antisemitic; record co-occurrence with VM14 where a recognised hate trope is present.
+    lexicon: [puppet master, globalist, cabal, new world order, illuminati, octopus controlling, deep state]
+    clip_prompts: ["a puppet master controlling politicians with strings", "an octopus with tentacles wrapped around the globe", "shadowy elites secretly controlling the world"]
+  - id: VM14
+    name: hate_symbols
+    definition: A symbol listed in the ADL Hate Symbols Database (https://www.adl.org/resources/hate-symbols) or an equivalent authoritative reference.
+    include: Swastikas (non-religious use), SS runes, Celtic cross in white-supremacist styling, numeric codes as visual elements.
+    exclude: Historical documentary context clearly critical of the symbol; Hindu/Buddhist religious swastika in religious context.
+    lexicon: [swastika, ss runes, nazi, kkk, white power, "1488"]
+    clip_prompts: ["a Nazi swastika flag", "a white supremacist hate symbol", "a Ku Klux Klan rally"]
+  - id: VM15
+    name: text_slogan_overlay
+    definition: Embedded text forming part of the image - slogans, captions, meme text, poster headlines.
+    include: Any legible text added as a message (not incidental signage).
+    exclude: Watermarks, artist signatures, incidental shop signs.
+    lexicon: [propaganda poster, political poster, slogan, protest sign, political meme]
+    clip_prompts: ["a propaganda poster with a bold slogan", "a meme with large text caption", "a political poster with headline text"]
+  - id: VM16
+    name: documentary_realism
+    definition: Photorealistic rendering in a news/photojournalistic or eyewitness style such that the image could be read as a photograph of a real event.
+    include: Press-photo framing, smartphone-snapshot look, news-agency style, plausible real location.
+    exclude: Obviously painterly, cartoon, 3D-render, or fantasy styles.
+    lexicon: [photojournalism, news photo, press photo, reuters, ap photo, breaking news, smartphone photo, documentary photo]
+    clip_prompts: ["a photojournalistic news photograph of a breaking event", "an amateur smartphone photo of a real event", "a realistic press agency photograph"]
+  - id: VM17
+    name: heroic_ingroup
+    definition: Idealized ordinary in-group members - workers, mothers, soldiers, farmers - rendered as strong, pure, or exemplary (socialist-realist / poster style).
+    include: Muscular worker with tools, heroic mother with children, noble farmer at dawn.
+    exclude: Neutral everyday depictions.
+    lexicon: [heroic worker, socialist realism, noble, brave citizens, strong mother, proud]
+    clip_prompts: ["a socialist realism painting of heroic workers", "idealized brave citizens in a propaganda poster", "a noble farmer in heroic pose at sunrise"]
+  - id: VM18
+    name: gore_bodily_harm
+    definition: Visible blood, wounds, mutilation, or corpses.
+    include: Any visible blood or injuries beyond minor scrapes; dead bodies.
+    exclude: Stylized non-realistic fantasy gore unconnected to real events is still coded 1 but noted.
+    lexicon: [blood, corpse, dead bodies, massacre, wounded, gore, bloody]
+    clip_prompts: ["a bloody massacre with corpses", "a wounded person covered in blood", "dead bodies on the ground"]
+  - id: VM19
+    name: sexualized_real_person
+    definition: Sexualized or nude depiction of a real, identifiable adult person (non-consensual intimate imagery risk).
+    include: Any sexualized depiction of a real public or private adult figure.
+    exclude: Fully fictional characters.
+    handling: Do NOT store image bytes. Record hashes and URL only. Any depiction involving a minor is excluded and reported (see docs/ETHICS_AND_LEGAL.md).
+    lexicon: []
+    clip_prompts: []
+  - id: VM20
+    name: caricature
+    definition: Exaggerated, grotesque, or mocking depiction of an identifiable person or group.
+    include: Distorted facial features, mocking costumes, satirical exaggeration.
+    exclude: Flattering stylization (code VM02 if idealized).
+    lexicon: [caricature, cartoon of, mocking, grotesque, satirical]
+    clip_prompts: ["a grotesque political caricature", "a mocking satirical cartoon of a politician", "an exaggerated caricature with distorted features"]
+
+# SemEval-2021 Task 6 (Dimitrov et al. 2021) persuasion-technique taxonomy.
+# modality: which channel can carry the technique. Text-only techniques are
+# coded only when VM15 (text overlay) is present.
+persuasion_techniques:
+  - {id: PT01, name: appeal_to_authority, modality: both, definition: "A claim is presented as true because an authority, expert, or institution supports it."}
+  - {id: PT02, name: appeal_to_fear_prejudice, modality: both, definition: "Builds support by instilling anxiety or panic about an alternative, possibly based on prejudice."}
+  - {id: PT03, name: bandwagon, modality: both, definition: "Persuades by suggesting everyone is joining, so the viewer should too."}
+  - {id: PT04, name: black_and_white_fallacy, modality: both, definition: "Presents two alternatives as the only options when more exist; includes dictatorship (telling the audience what to do)."}
+  - {id: PT05, name: causal_oversimplification, modality: text, definition: "Assumes a single cause for an issue that has multiple causes."}
+  - {id: PT06, name: doubt, modality: both, definition: "Questions the credibility of someone or something."}
+  - {id: PT07, name: exaggeration_minimisation, modality: both, definition: "Represents something as larger/better/worse or smaller/less important than it is."}
+  - {id: PT08, name: flag_waving, modality: both, definition: "Plays on strong national or group feeling to justify an action or idea."}
+  - {id: PT09, name: glittering_generalities, modality: both, definition: "Uses virtue words/images (freedom, peace, family) that evoke approval without argument."}
+  - {id: PT10, name: loaded_language, modality: text, definition: "Uses words with strong emotional implications."}
+  - {id: PT11, name: straw_man, modality: both, definition: "Substitutes an opponent's position with a distorted, easier-to-refute version."}
+  - {id: PT12, name: name_calling_labeling, modality: both, definition: "Labels the target as something the audience fears, hates, or finds undesirable (visually: depicting target as such)."}
+  - {id: PT13, name: obfuscation_vagueness, modality: text, definition: "Uses deliberately unclear language so the audience can form their own interpretation."}
+  - {id: PT14, name: red_herring, modality: both, definition: "Introduces irrelevant material to divert attention."}
+  - {id: PT15, name: reductio_ad_hitlerum, modality: both, definition: "Persuades the audience to disapprove of something by associating it with groups they hate (e.g. Nazis)."}
+  - {id: PT16, name: repetition, modality: both, definition: "Repeats the same message or visual element over and over."}
+  - {id: PT17, name: slogans, modality: text, definition: "A brief, striking phrase, possibly with labeling and stereotyping."}
+  - {id: PT18, name: smears, modality: both, definition: "Damages someone's reputation via negative depictions or claims."}
+  - {id: PT19, name: thought_terminating_cliche, modality: text, definition: "Short generic phrases that discourage critical thought."}
+  - {id: PT20, name: whataboutism, modality: text, definition: "Discredits a position by charging hypocrisy without refuting the argument."}
+  - {id: PT21, name: transfer, modality: image, definition: "Projects positive or negative qualities of one person, entity, or value onto another, often via visual juxtaposition."}
+  - {id: PT22, name: appeal_to_strong_emotions, modality: image, definition: "Uses images with strong emotional content (e.g. suffering, cuteness, horror) to persuade."}
+
+affect:
+  scale: SAM-9   # Bradley & Lang 1994
+  dimensions:
+    valence: {min: 1, max: 9, anchors: {1: "very unpleasant", 5: "neutral", 9: "very pleasant"}}
+    arousal: {min: 1, max: 9, anchors: {1: "very calm", 5: "moderate", 9: "very excited / agitated"}}
+    dominance: {min: 1, max: 9, anchors: {1: "viewer feels controlled / powerless", 9: "viewer feels in control"}, optional: true}
+
+discrete_emotions: [anger, fear, disgust, contempt, sadness, pride, joy, awe, none]
+
+filters:
+  high_affect:          # default; see METHODOLOGY 4.4
+    arousal_min: 7
+    alt_arousal_min: 6
+    alt_valence_distance_min: 3
+  high_engagement_percentile: 90
+  min_platforms_for_spread: 2
+  phash_max_distance: 8
+  primary_snapshot_min_age_hours: 168
+  min_stratum_size: 30
