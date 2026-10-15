@@ -48,6 +48,64 @@ def cmd_code_clip(a):
         store.write(plat, recs.values())
 
 
+def _thresholds(path: str) -> dict:
+    p = Path(path)
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _vlm(a):
+    from .coders.vlm import VLMCoder
+
+    return VLMCoder(cbmod.load(a.codebook), model=a.model, effort=a.effort, thresholds=_thresholds(a.thresholds))
+
+
+def cmd_code_vlm(a):
+    from .coders.vlm_runner import run_sync, submit_batch
+
+    coder, store = _vlm(a), Store(a.data)
+    print(f"coder_id: {coder.coder_id()}", file=sys.stderr)
+    out = submit_batch(store, coder, a.limit) if a.batch else run_sync(store, coder, a.limit)
+    print(json.dumps(out, indent=2))
+
+
+def cmd_vlm_collect(a):
+    from .coders.vlm_runner import collect_batch, run_sync
+
+    coder, store = _vlm(a), Store(a.data)
+    out = collect_batch(store, coder, a.batch_id, wait=a.wait)
+    if a.retry_sync and out.get("retry_record_ids"):
+        out["retry"] = run_sync(store, coder, record_ids=set(out["retry_record_ids"]))
+    print(json.dumps(out, indent=2))
+
+
+def cmd_calibrate(a):
+    from .calibration import apply_thresholds, calibrate, write_thresholds
+
+    cb, store = cbmod.load(a.codebook), Store(a.data)
+    report = calibrate(store.iter_records(), cb, a.coder_id, seed=a.seed, rule=a.rule,
+                       min_f1=a.min_f1, min_test_positives=a.min_test_positives)
+    print(json.dumps(report, indent=2))
+    if a.write:
+        write_thresholds(report, a.thresholds)
+        print(f"wrote {a.thresholds}", file=sys.stderr)
+    if a.apply:
+        th = _thresholds(a.thresholds)
+        n = 0
+        for plat in store.platforms():
+            recs = store.load(plat)
+            n += apply_thresholds(recs.values(), th)
+            store.write(plat, recs.values())
+        print(f"re-thresholded {n} model codes", file=sys.stderr)
+
+
+def cmd_purge(a):
+    from .pipeline import make_session
+    from .purge import purge
+
+    cfg = _cfg(a.config) if Path(a.config).exists() else {}
+    print(json.dumps(purge(Store(a.data), make_session(cfg), a.platform or None, dry_run=a.dry_run), indent=2))
+
+
 def cmd_sheet(a):
     from .coders.human import export_sheet
 
@@ -146,6 +204,41 @@ def main(argv=None):
     s.add_argument("--pretrained", default="openai")
     s.add_argument("--thresholds", default="codebook/thresholds.json")
     s.set_defaults(func=cmd_code_clip)
+
+    def vlm_args(s):
+        s.add_argument("--model", default="claude-opus-5-5")
+        s.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
+        s.add_argument("--thresholds", default="codebook/thresholds.json")
+
+    s = sub.add_parser("code-vlm", help="code cached images with the vision-language-model coder (requires [vlm] extra)")
+    vlm_args(s)
+    s.add_argument("--limit", type=int)
+    s.add_argument("--batch", action="store_true", help="submit via Message Batches API (50%% price, async)")
+    s.set_defaults(func=cmd_code_vlm)
+
+    s = sub.add_parser("vlm-collect", help="collect a submitted VLM batch")
+    vlm_args(s)
+    s.add_argument("batch_id")
+    s.add_argument("--wait", action="store_true", help="poll until the batch ends")
+    s.add_argument("--retry-sync", action="store_true", help="re-run refused/errored items synchronously")
+    s.set_defaults(func=cmd_vlm_collect)
+
+    s = sub.add_parser("calibrate", help="validate a model coder against human gold codes")
+    s.add_argument("--coder-id", required=True)
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--rule", default="max_f1", choices=["max_f1", "precision"])
+    s.add_argument("--min-f1", type=float, default=0.70)
+    s.add_argument("--min-test-positives", type=int, default=10)
+    s.add_argument("--thresholds", default="codebook/thresholds.json")
+    s.add_argument("--write", action="store_true", help="write results to thresholds.json")
+    s.add_argument("--apply", action="store_true", help="re-threshold existing model codes from thresholds.json")
+    s.set_defaults(func=cmd_calibrate)
+
+    s = sub.add_parser("purge", help="tombstone items deleted at source (run before analysis/release)")
+    s.add_argument("--platform", action="append")
+    s.add_argument("--config", default="config.yaml")
+    s.add_argument("--dry-run", action="store_true")
+    s.set_defaults(func=cmd_purge)
 
     s = sub.add_parser("sheet", help="export a blank human coding sheet")
     s.add_argument("--out", required=True)

@@ -45,7 +45,8 @@ def consensus_motifs(rec: ImageRecord, cb: Codebook) -> set[str]:
 
 def consensus_affect(rec: ImageRecord) -> tuple[float, float] | None:
     cons = [a for a in rec.affect_codes if a.coder_type == "consensus"]
-    pool = cons or [a for a in rec.affect_codes if a.coder_type == "human"]
+    pool = (cons or [a for a in rec.affect_codes if a.coder_type == "human"]
+            or [a for a in rec.affect_codes if a.coder_type == "model" and a.validated][-1:])
     if not pool:
         return None
     return median(a.valence for a in pool), median(a.arousal for a in pool)

@@ -144,6 +144,7 @@ class AffectCode(BaseModel):
     primary_emotion: str | None = None
     secondary_emotion: str | None = None
     codebook_version: str
+    validated: bool = Field(False, description="True only for model coders whose affect ratings passed calibration")
     coded_at: datetime = Field(default_factory=utcnow)
 
 

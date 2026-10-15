@@ -35,9 +35,9 @@
 | `ai_status` | derived | Computed on read, not stored: strongest criterion → `confirmed` / `probable` / `possible` / `unverified` |
 | `engagement[]` | `EngagementSnapshot` | `observed_at`, `age_hours`, `raw`, `standard{reactions, amplifications, replies, views, audience}` |
 | `motif_codes[]` | `MotifCode` | `code_id`, `present`, `score`, `coder_id`, `coder_type` (`human`/`model`/`consensus`), `codebook_version`, `validated` |
-| `affect_codes[]` | `AffectCode` | SAM `valence`/`arousal`/`dominance` (1–9), `primary_emotion`, `secondary_emotion` |
+| `affect_codes[]` | `AffectCode` | SAM `valence`/`arousal`/`dominance` (1–9), `primary_emotion`, `secondary_emotion`, `validated` (model coders only) |
 | `cluster_id` | str | Near-duplicate cluster (METHODOLOGY §5.4) |
-| `exclusion` | str | If set, the record is excluded from analysis, e.g. `lead_unconfirmed`, `csam_suspected_removed`, `user_deleted` |
+| `exclusion` | str | If set, the record is excluded from analysis, e.g. `lead_unconfirmed`, `csam_suspected_removed`, `user_deleted@<date>` |
 
 ## Run manifests
 

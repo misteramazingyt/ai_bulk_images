@@ -69,6 +69,12 @@
           "title": "Codebook Version",
           "type": "string"
         },
+        "validated": {
+          "default": false,
+          "description": "True only for model coders whose affect ratings passed calibration",
+          "title": "Validated",
+          "type": "boolean"
+        },
         "coded_at": {
           "format": "date-time",
           "title": "Coded At",

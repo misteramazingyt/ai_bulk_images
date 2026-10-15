@@ -49,9 +49,15 @@ aibi cluster                               # near-duplicate clusters across plat
 aibi sheet --out coderA.csv --sample 200   # blank human coding sheet
 aibi import-codes coderA.csv --coder-id A
 aibi reliability coderA.csv coderB.csv     # Krippendorff's alpha per variable
-aibi code-clip                             # optional model coder; it counts only after validation (METHODOLOGY §4.3)
+aibi code-vlm --limit 20                   # model coder, synchronous (pip install -e ".[vlm]"; needs Anthropic credentials)
+aibi code-vlm --batch                      # same coder through the Message Batches API at 50% cost; prints a batch_id
+aibi vlm-collect <batch_id> --wait --retry-sync
+aibi calibrate --coder-id <id> --write --apply   # validate against human gold; writes codebook/thresholds.json
+aibi purge                                 # remove items deleted at source; run before analysis or release
 aibi filter --out filtered.csv             # Filter 1 + Filter 2 metrics per image
 ```
+
+Model-coder codes count only after `aibi calibrate` validates them (METHODOLOGY §4.3). Read `docs/ETHICS_AND_LEGAL.md` §2a before sending images to an API.
 
 ## Development
 
@@ -74,6 +80,8 @@ src/aibi/
   reliability.py          Krippendorff's alpha, threshold calibration, AUROC
   filters.py              Filter 1 (motif + affect) and Filter 2 (spread + engagement)
   collectors/             diffusiondb, reddit, bluesky, wikimedia, factcheck
-  coders/                 human sheet round-trip, CLIP zero-shot
+  coders/                 human sheet round-trip, CLIP zero-shot, vision-language model (sync + batch)
+  calibration.py          model-coder validation -> thresholds.json
+  safety.py, purge.py     harmful-content flags, deletion compliance
   pipeline.py, cli.py
 ```

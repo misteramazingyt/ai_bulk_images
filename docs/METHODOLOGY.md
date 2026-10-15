@@ -79,7 +79,12 @@ The full codebook is in `docs/CODEBOOK.md`; the machine-readable version is `cod
 ### 4.1 Coders
 
 - **Human coders.** At least two trained coders, each with a documented codebook-training session that ends when they pass a 50-image training set at α ≥ 0.80.
-- **Model coders.** Automated coders are registered with a stable `coder_id`: CLIP zero-shot (`coders/clip_zeroshot.py`), or a vision-language model prompted with the codebook definitions verbatim. A model coder's output counts as a code **only after validation against human gold labels** (§4.3).
+- **Model coders.** Automated coders are registered with a stable `coder_id`. A model coder's output counts as a code **only after validation against human gold labels** (§4.3). Two are implemented:
+  - **CLIP zero-shot** (`coders/clip_zeroshot.py`) gives visual motifs only, each as a continuous score.
+  - **Vision-language model** (`coders/vlm.py`, `aibi code-vlm`) receives the full codebook verbatim as its system prompt and must return a schema-constrained JSON decision for **every** code, with SAM affect, target emotions and a safety flag.
+    - Each present/absent decision carries a low/medium/high confidence, mapped to an ordinal score (P(present) ∈ {0.05, 0.2, 0.4, 0.6, 0.8, 0.95}) so thresholds can be calibrated and AUROC computed.
+    - The `coder_id` encodes the model, the effort level, the codebook version, and a hash of the prompt and schema. **Any prompt or codebook change creates a new coder that must be re-validated.**
+    - If the primary model declines an image and a server-side fallback model answers instead, those codes carry the fallback model's id, so they form a separate coder with its own validation.
 
 ### 4.2 Reliability
 
@@ -94,6 +99,14 @@ For each motif, compute precision, recall, F1 and AUROC against a held-out human
 The threshold per motif is chosen on a *calibration* split (default rule: maximize F1, or the lowest threshold giving precision ≥ 0.80) and then evaluated on a separate *test* split. The thresholds are stored in `codebook/thresholds.json`, keyed by `coder_id` and `codebook_version`.
 
 A motif whose model coder has test-set F1 < 0.70 is coded **by humans only**.
+
+**Implementation** (`aibi calibrate --coder-id <id> --write --apply`):
+
+- **Gold label:** the adjudicated consensus code where one exists, otherwise the human majority. Ties are skipped.
+- **Split:** records are divided into calibration and test halves by a seeded hash of `record_id`, so the split is reproducible and independent of the order records were collected in.
+- **Validation:** a code is marked `validated` only if test F1 ≥ 0.70 **and** the test half contains ≥ 10 gold positives. Below 10 positives, F1 is too unstable to trust. The target remains ≥ 50 positives where obtainable.
+- **Affect ratings:** validated when interval α between the model and the human median is ≥ 0.80 for both valence and arousal on the test half.
+- **Output:** `--write` stores the results in `codebook/thresholds.json`. `--apply` re-thresholds the existing model codes in the store and sets their `validated` flags.
 
 ### 4.4 Filter 1: propagandistic / high-affect (default definition)
 
