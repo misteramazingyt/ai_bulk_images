@@ -7,12 +7,13 @@
   or codebook is a new coder that must be re-validated (METHODOLOGY §4.3).
   The id records the model that actually served the response, so answers
   produced by a refusal fallback model form their own coder.
-* Two transports: synchronous (with server-side refusal fallbacks) and the
-  Message Batches API (50% price; fallbacks are not available there, so
-  refused items are re-run synchronously).
+* Claude: synchronous (with server-side refusal fallbacks) or the Message
+  Batches API (50% price; refused batch items are re-run synchronously).
+* Gemini: synchronous; refusals/safety blocks are recorded and skipped.
 
-Requires `pip install -e .[vlm]` and Anthropic credentials (ANTHROPIC_API_KEY
-or an `ant auth login` profile).
+Providers: Claude (`pip install -e .[vlm]`; ANTHROPIC_API_KEY or `ant auth
+login`) and Gemini (`pip install -e .[gemini]`; GEMINI_API_KEY). Each provider/
+model is a separate coder and is validated separately.
 """
 
 from __future__ import annotations
@@ -123,51 +124,31 @@ class VLMResult:
     affect_codes: list[AffectCode]
     safety_flag: str
     served_model: str | None
-    refused: str | None = None  # refusal category / reason if no codes
+    refused: str | None = None  # refusal / block reason if no codes
 
 
 class VLMCoder:
-    def __init__(self, codebook: Codebook, model: str = DEFAULT_MODEL, effort: str = "high",
-                 thresholds: dict | None = None, client=None):
-        import anthropic
+    """Provider-independent part: prompt, schema, coder_id, output parsing."""
 
-        self.client = client or anthropic.Anthropic()
+    provider = "base"
+
+    def __init__(self, codebook: Codebook, model: str, effort: str = "high", thresholds: dict | None = None):
         self.cb, self.model, self.effort = codebook, model, effort
         self.system = system_prompt(codebook)
         self.schema = response_schema(codebook)
-        self.prompt_hash = hashlib.sha256((self.system + json.dumps(self.schema, sort_keys=True)).encode()).hexdigest()[:10]
+        fingerprint = self.system + json.dumps(self.schema, sort_keys=True) + json.dumps(self.config_fingerprint(), sort_keys=True)
+        self.prompt_hash = hashlib.sha256(fingerprint.encode()).hexdigest()[:10]
         self.thresholds = thresholds or {}
+
+    def config_fingerprint(self) -> dict:
+        """Provider settings that can change outputs (hashed into coder_id)."""
+        return {}
 
     def coder_id(self, served_model: str | None = None) -> str:
         return f"vlm:{served_model or self.model}:effort-{self.effort}:cb{self.cb.version}:p{self.prompt_hash}"
 
-    def params(self, raw: bytes) -> dict[str, Any]:
-        media, data = prepare_image(raw)
-        return dict(
-            model=self.model,
-            max_tokens=16000,
-            system=[{"type": "text", "text": self.system, "cache_control": {"type": "ephemeral"}}],
-            output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": self.schema}},
-            messages=[{"role": "user", "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": media, "data": data}},
-                {"type": "text", "text": "Code this image according to the codebook."},
-            ]}],
-        )
-
     def code(self, raw: bytes) -> VLMResult:
-        """Synchronous request with server-side refusal fallbacks."""
-        msg = self.client.beta.messages.create(**self.params(raw), betas=[FALLBACK_BETA], fallbacks="default")
-        return self.parse_message(msg)
-
-    def parse_message(self, msg) -> VLMResult:
-        served = getattr(msg, "model", None)
-        if msg.stop_reason == "refusal":
-            details = getattr(msg, "stop_details", None)
-            return VLMResult([], [], "none", served, refused=getattr(details, "category", None) or "refusal")
-        if msg.stop_reason == "max_tokens":
-            return VLMResult([], [], "none", served, refused="max_tokens")
-        text = next((b.text for b in msg.content if b.type == "text"), "")
-        return self.parse_output(json.loads(text), served)
+        raise NotImplementedError
 
     def parse_output(self, out: dict, served_model: str | None) -> VLMResult:
         cid = self.coder_id(served_model)
@@ -187,8 +168,140 @@ class VLMCoder:
             coder_id=cid, coder_type="model", valence=out["valence"], arousal=out["arousal"],
             dominance=out.get("dominance"), primary_emotion=out.get("primary_emotion"),
             secondary_emotion=out.get("secondary_emotion"), codebook_version=self.cb.version,
+            validated=bool(th.get("_affect", {}).get("validated")),
         )]
         return VLMResult(codes, affect, out.get("safety_flag", "none"), served_model)
+
+
+class ClaudeVLMCoder(VLMCoder):
+    """Claude API: sync with server-side refusal fallbacks, or Message Batches."""
+
+    provider = "anthropic"
+    supports_batch = True
+
+    def __init__(self, codebook: Codebook, model: str = DEFAULT_MODEL, effort: str = "high",
+                 thresholds: dict | None = None, client=None):
+        super().__init__(codebook, model, effort, thresholds)
+        if client is None:
+            import anthropic
+
+            client = anthropic.Anthropic()
+        self.client = client
+
+    def params(self, raw: bytes) -> dict[str, Any]:
+        media, data = prepare_image(raw)
+        return dict(
+            model=self.model,
+            max_tokens=16000,
+            system=[{"type": "text", "text": self.system, "cache_control": {"type": "ephemeral"}}],
+            output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": self.schema}},
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media, "data": data}},
+                {"type": "text", "text": "Code this image according to the codebook."},
+            ]}],
+        )
+
+    def code(self, raw: bytes) -> VLMResult:
+        msg = self.client.beta.messages.create(**self.params(raw), betas=[FALLBACK_BETA], fallbacks="default")
+        return self.parse_message(msg)
+
+    def parse_message(self, msg) -> VLMResult:
+        served = getattr(msg, "model", None)
+        if msg.stop_reason == "refusal":
+            details = getattr(msg, "stop_details", None)
+            return VLMResult([], [], "none", served, refused=getattr(details, "category", None) or "refusal")
+        if msg.stop_reason == "max_tokens":
+            return VLMResult([], [], "none", served, refused="max_tokens")
+        text = next((b.text for b in msg.content if b.type == "text"), "")
+        return self.parse_output(json.loads(text), served)
+
+
+GEMINI_DEFAULT_MODEL = "gemini-3.1-pro-preview"
+# Research coding of propaganda imagery must see hateful/violent content; relax
+# those filters to block only high-probability harm. Sexual-content filters
+# keep the API default. Settings are part of the coder fingerprint.
+GEMINI_RELAXED = ("HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_DANGEROUS_CONTENT")
+GEMINI_BLOCKED = {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT",
+                  "RECITATION", "OTHER"}
+
+
+class GeminiVLMCoder(VLMCoder):
+    """Gemini API via the google-genai SDK (key from GEMINI_API_KEY / GOOGLE_API_KEY)."""
+
+    provider = "gemini"
+    supports_batch = False
+
+    def __init__(self, codebook: Codebook, model: str = GEMINI_DEFAULT_MODEL, effort: str = "high",
+                 thresholds: dict | None = None, client=None):
+        super().__init__(codebook, model, effort, thresholds)
+        if client is None:
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(attempts=5, http_status_codes=[408, 429, 500, 502, 503, 504])))
+        self.client = client
+
+    def thinking_level(self) -> str | None:
+        if not self.model.startswith("gemini-3"):
+            return None  # older models use thinking budgets; leave the API default
+        return {"low": "LOW", "medium": "MEDIUM"}.get(self.effort, "HIGH")
+
+    def config_fingerprint(self) -> dict:
+        return {"provider": "gemini", "safety": {c: "BLOCK_ONLY_HIGH" for c in GEMINI_RELAXED},
+                "thinking_level": self.thinking_level()}
+
+    def config(self):
+        from google.genai import types
+
+        kw = dict(
+            system_instruction=self.system,
+            response_mime_type="application/json",
+            response_json_schema=self.schema,
+            max_output_tokens=16000,
+            safety_settings=[types.SafetySetting(category=c, threshold="BLOCK_ONLY_HIGH") for c in GEMINI_RELAXED],
+        )
+        if self.thinking_level():
+            kw["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level())
+        return types.GenerateContentConfig(**kw)
+
+    def code(self, raw: bytes) -> VLMResult:
+        from google.genai import types
+
+        media, data = prepare_image(raw)
+        resp = self.client.models.generate_content(
+            model=self.model,
+            contents=[types.Part.from_bytes(data=base64.b64decode(data), mime_type=media),
+                      "Code this image according to the codebook."],
+            config=self.config(),
+        )
+        return self.parse_response(resp)
+
+    def parse_response(self, resp) -> VLMResult:
+        served = getattr(resp, "model_version", None) or self.model
+        feedback = getattr(resp, "prompt_feedback", None)
+        if feedback is not None and getattr(feedback, "block_reason", None):
+            return VLMResult([], [], "none", served, refused=f"blocked:{_enum_name(feedback.block_reason)}")
+        if not resp.candidates:
+            return VLMResult([], [], "none", served, refused="no_candidates")
+        reason = _enum_name(resp.candidates[0].finish_reason)
+        if reason in GEMINI_BLOCKED:
+            return VLMResult([], [], "none", served, refused=f"finish:{reason}")
+        if reason == "MAX_TOKENS":
+            return VLMResult([], [], "none", served, refused="max_tokens")
+        return self.parse_output(json.loads(resp.text), served)
+
+
+def _enum_name(x) -> str:
+    return getattr(x, "name", None) or str(x).split(".")[-1]
+
+
+PROVIDERS = {"anthropic": ClaudeVLMCoder, "gemini": GeminiVLMCoder}
+
+
+def make_coder(provider: str, codebook: Codebook, model: str | None = None, **kw) -> VLMCoder:
+    cls = PROVIDERS[provider]
+    return cls(codebook, **({"model": model} if model else {}), **kw)
 
 
 def batch_custom_id(record_id: str) -> str:

@@ -81,9 +81,10 @@ The full codebook is in `docs/CODEBOOK.md`; the machine-readable version is `cod
 - **Human coders.** At least two trained coders, each with a documented codebook-training session that ends when they pass a 50-image training set at α ≥ 0.80.
 - **Model coders.** Automated coders are registered with a stable `coder_id`. A model coder's output counts as a code **only after validation against human gold labels** (§4.3). Two are implemented:
   - **CLIP zero-shot** (`coders/clip_zeroshot.py`) gives visual motifs only, each as a continuous score.
-  - **Vision-language model** (`coders/vlm.py`, `aibi code-vlm`) receives the full codebook verbatim as its system prompt and must return a schema-constrained JSON decision for **every** code, with SAM affect, target emotions and a safety flag.
+  - **Vision-language model** (`coders/vlm.py`, `aibi code-vlm`), with two providers: Gemini (default `gemini-3.1-pro-preview`) and Claude (`claude-opus-5-5`). It receives the full codebook verbatim as its system prompt and must return a schema-constrained JSON decision for **every** code, with SAM affect, target emotions and a safety flag.
     - Each present/absent decision carries a low/medium/high confidence, mapped to an ordinal score (P(present) ∈ {0.05, 0.2, 0.4, 0.6, 0.8, 0.95}) so thresholds can be calibrated and AUROC computed.
-    - The `coder_id` encodes the model, the effort level, the codebook version, and a hash of the prompt and schema. **Any prompt or codebook change creates a new coder that must be re-validated.**
+    - The `coder_id` encodes the model version that served the request, the effort level, the codebook version, and a hash of the prompt, the schema and the provider settings (for Gemini, its safety-filter settings and thinking level). Each provider and model is validated separately.
+    - For Gemini, the hate, harassment and dangerous-content filters are set to block only high-probability content, so propaganda imagery can be coded at all. The sexual-content filters keep Google's defaults. Images the provider blocks are logged as refused and must be human-coded. **Any prompt or codebook change creates a new coder that must be re-validated.**
     - If the primary model declines an image and a server-side fallback model answers instead, those codes carry the fallback model's id, so they form a separate coder with its own validation.
 
 ### 4.2 Reliability

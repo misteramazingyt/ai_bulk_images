@@ -28,11 +28,13 @@ This is a working protocol, not legal advice. Before collecting at scale, obtain
 
 ## 2a. Sending images to a model-coder API
 
-`aibi code-vlm` sends cached image bytes to the Anthropic API for coding. Before using it:
+`aibi code-vlm` sends cached image bytes for coding to the Google Gemini API (default) or the Anthropic API. Before using it:
 
 - **Data-protection basis.** Confirm with your DPO/IRB that third-party processing is covered by your protocol and consent basis. Check your API organization's data-retention configuration.
 - **Platform terms.** Confirm that each source platform's terms allow sending its content to a third-party processor for analysis. Reddit's Data API Terms, for example, restrict some uses of content with AI models, so check the current version.
 - **When in doubt, don't send.** Exclude a corpus from model coding with `--limit` or a separate data directory, and code it by humans only.
+- **API keys.** Keep keys in environment variables (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) or a git-ignored `.env`, never in the repository. Rotate any key that has been pasted into a chat, an issue or a log.
+- **Google data terms.** On the Gemini API, the free tier's terms allow Google to use submitted content to improve its products. Use a paid or Vertex AI project for research data.
 - **What is sent.** Only image bytes, downscaled to a long edge of at most 1568 px. No captions, author data or URLs are sent.
 
 ## 3. Copyright and redistribution
@@ -52,6 +54,7 @@ This is a working protocol, not legal advice. Before collecting at scale, obtain
   - `possible_minor_sexualization`: cached bytes are deleted immediately, the record is excluded (`csam_suspected_removed`), and a critical log line gives the URL so a person can follow the reporting steps above.
   - `sexualized_real_person`: bytes are deleted, following the VM19 handling rule.
   - Automated flags can be false positives. A deleted CC0 image can be fetched again after human review.
+- **Swipe app protections.** Images are blurred until tapped by default. Every card has a ⚠ report button, which hides the image for all coders. "May sexualize a minor" also deletes the stored file and logs the URL for reporting. The app is served with an access token and is meant for a trusted local network.
 - **Coder wellbeing.** Propaganda corpora include gore, dehumanization and hate imagery. Rules for coders:
   - Sessions are capped at 90 minutes.
   - Coders may skip an item without penalty.

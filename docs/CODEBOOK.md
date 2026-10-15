@@ -15,7 +15,9 @@ Coders may read the post caption for context **after** coding the image. A capti
 
 ## Procedure
 
-1. Open the image at full resolution, using `local_path` or `post_url` in the coding sheet (`aibi sheet --out sheet.csv`).
+1. Open the image at full resolution. The swipe app (`aibi code-ui`, see the README) does this for you. With a spreadsheet instead, use `local_path` or `post_url` from `aibi sheet --out sheet.csv`.
+   - **In the swipe app:** right = `1`, left = `0`, up = unsure. Unsure is exported as blank, with the code listed in `note`.
+   - **Order:** prefer the "one code at a time" order, which keeps a single definition in mind. Run the affect pass separately, after the motif passes.
 2. **Layer 1 – visual motifs.** For each VM code, enter `1` if the inclusion criterion is met and no exclusion applies, otherwise `0`. Several motifs can be present at once. Prefer `0` when in doubt, and add a note.
 3. **Layer 2 – persuasion techniques.** Enter `1` where the image as a whole performs the technique.
 4. **Layer 3 – affect.** Rate the response the image is *designed to elicit in a general adult viewer* on the SAM 9-point scales:

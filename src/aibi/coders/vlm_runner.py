@@ -49,19 +49,13 @@ def _save(store: Store, recs: Iterable[ImageRecord]) -> None:
 
 
 def run_sync(store: Store, coder: VLMCoder, limit: int | None = None, record_ids: set[str] | None = None) -> dict:
-    import anthropic
-
     stats = {"coded": 0, "refused": 0, "errors": 0}
     done: list[ImageRecord] = []
     for rec in pending(store, coder, limit, record_ids):
         try:
             res = coder.code(Path(rec.image.local_path).read_bytes())
-        except (anthropic.BadRequestError, anthropic.NotFoundError) as e:
-            log.error("%s: non-retryable API error: %s", rec.record_id, e)
-            stats["errors"] += 1
-            continue
-        except anthropic.APIError as e:  # SDK already retried 429/5xx/connection errors
-            log.error("%s: API error after retries: %s", rec.record_id, e)
+        except Exception as e:  # both SDKs already retried 429/5xx/connection errors
+            log.error("%s: %s error: %s", rec.record_id, coder.provider, e)
             stats["errors"] += 1
             continue
         if res.refused:
@@ -81,6 +75,8 @@ def submit_batch(store: Store, coder: VLMCoder, limit: int | None = None) -> dic
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
     from anthropic.types.messages.batch_create_params import Request
 
+    if not getattr(coder, "supports_batch", False):
+        raise ValueError(f"batch mode is not implemented for provider '{coder.provider}'; run without --batch")
     recs = pending(store, coder, limit)
     if not recs:
         return {"submitted": 0}
@@ -89,7 +85,7 @@ def submit_batch(store: Store, coder: VLMCoder, limit: int | None = None) -> dic
                         params=MessageCreateParamsNonStreaming(**coder.params(Path(r.image.local_path).read_bytes())))
                 for r in recs]
     batch = coder.client.messages.batches.create(requests=requests)
-    state = {"batch_id": batch.id, "created_at": utcnow().isoformat(), "model": coder.model, "effort": coder.effort,
+    state = {"batch_id": batch.id, "provider": coder.provider, "created_at": utcnow().isoformat(), "model": coder.model, "effort": coder.effort,
              "prompt_hash": coder.prompt_hash, "codebook_version": coder.cb.version, "custom_ids": mapping}
     path = store.root / "vlm_batches" / f"{batch.id}.json"
     path.parent.mkdir(exist_ok=True)

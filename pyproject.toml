@@ -20,6 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 clip = ["open_clip_torch>=2.24", "torch>=2.1"]
 vlm = ["anthropic>=1.15"]
+gemini = ["google-genai>=2.31"]
 dev = ["pytest>=8", "jsonschema>=4"]
 
 [project.scripts]
@@ -27,6 +28,9 @@ aibi = "aibi.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+aibi = ["ui/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

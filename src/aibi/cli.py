@@ -54,9 +54,10 @@ def _thresholds(path: str) -> dict:
 
 
 def _vlm(a):
-    from .coders.vlm import VLMCoder
+    from .coders.vlm import make_coder
 
-    return VLMCoder(cbmod.load(a.codebook), model=a.model, effort=a.effort, thresholds=_thresholds(a.thresholds))
+    return make_coder(a.provider, cbmod.load(a.codebook), model=a.model, effort=a.effort,
+                      thresholds=_thresholds(a.thresholds))
 
 
 def cmd_code_vlm(a):
@@ -104,6 +105,43 @@ def cmd_purge(a):
 
     cfg = _cfg(a.config) if Path(a.config).exists() else {}
     print(json.dumps(purge(Store(a.data), make_session(cfg), a.platform or None, dry_run=a.dry_run), indent=2))
+
+
+def cmd_code_ui(a):
+    import socket
+
+    from .ui.server import CodingSession, select_codes, serve
+
+    cb = cbmod.load(a.codebook)
+    session = CodingSession(Store(a.data), cb, select_codes(cb, a.codes), sample=a.sample, seed=a.seed, token=a.token)
+    httpd = serve(session, a.host, a.port)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("192.0.2.1", 80))  # no packets sent; picks the LAN interface
+        lan = s.getsockname()[0]
+        s.close()
+    except OSError:
+        lan = "localhost"
+    host = lan if a.host in ("0.0.0.0", "") else a.host
+    print(f"{len(session.records)} images x {len(session.codes)} codes")
+    print(f"Open on a phone on the same network:\n  http://{host}:{a.port}/?t={session.token}")
+    print(f"Coder logs: {session.log_dir}/<coder>.jsonl   (Ctrl-C to stop)")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+def cmd_ui_export(a):
+    from .ui.server import export_coder
+
+    store = Store(a.data)
+    coders = a.coder or sorted(p.stem for p in (store.root / "coding").glob("*.jsonl"))
+    cb = cbmod.load(a.codebook)
+    for c in coders:
+        out = Path(a.out_dir) / f"{c}.csv"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        print(f"{c}: {export_coder(store, cb, c, out)} rows -> {out}")
 
 
 def cmd_sheet(a):
@@ -206,14 +244,15 @@ def main(argv=None):
     s.set_defaults(func=cmd_code_clip)
 
     def vlm_args(s):
-        s.add_argument("--model", default="claude-opus-5-5")
+        s.add_argument("--provider", default="gemini", choices=["gemini", "anthropic"])
+        s.add_argument("--model", help="default: gemini-3.1-pro-preview / claude-opus-5-5")
         s.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
         s.add_argument("--thresholds", default="codebook/thresholds.json")
 
     s = sub.add_parser("code-vlm", help="code cached images with the vision-language-model coder (requires [vlm] extra)")
     vlm_args(s)
     s.add_argument("--limit", type=int)
-    s.add_argument("--batch", action="store_true", help="submit via Message Batches API (50%% price, async)")
+    s.add_argument("--batch", action="store_true", help="anthropic only: submit via Message Batches API (50%% price, async)")
     s.set_defaults(func=cmd_code_vlm)
 
     s = sub.add_parser("vlm-collect", help="collect a submitted VLM batch")
@@ -239,6 +278,20 @@ def main(argv=None):
     s.add_argument("--config", default="config.yaml")
     s.add_argument("--dry-run", action="store_true")
     s.set_defaults(func=cmd_purge)
+
+    s = sub.add_parser("code-ui", help="serve the swipe-to-code web app for human coders")
+    s.add_argument("--host", default="0.0.0.0")
+    s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--codes", default="image", help="image (default) | visual | all | comma-separated ids")
+    s.add_argument("--sample", type=int, help="number of images (same seeded set for every coder)")
+    s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--token", help="access token (default: random, printed in the URL)")
+    s.set_defaults(func=cmd_code_ui)
+
+    s = sub.add_parser("ui-export", help="export swipe-coder logs to coding sheets (for import-codes / reliability)")
+    s.add_argument("--coder", action="append", help="coder id (repeatable); default all")
+    s.add_argument("--out-dir", default="data/coding/sheets")
+    s.set_defaults(func=cmd_ui_export)
 
     s = sub.add_parser("sheet", help="export a blank human coding sheet")
     s.add_argument("--out", required=True)

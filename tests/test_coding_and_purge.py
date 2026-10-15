@@ -12,7 +12,7 @@ from PIL import Image
 from aibi import codebook as cbmod
 from aibi import purge as purgemod
 from aibi.calibration import apply_thresholds, calibrate, write_thresholds
-from aibi.coders.vlm import SCORE, VLMCoder, batch_custom_id, prepare_image, response_schema
+from aibi.coders.vlm import SCORE, ClaudeVLMCoder, GeminiVLMCoder, batch_custom_id, prepare_image, response_schema
 from aibi.coders.vlm_runner import run_sync
 from aibi.filters import consensus_affect
 from aibi.models import AffectCode, MotifCode
@@ -73,7 +73,7 @@ def test_batch_custom_id_pattern():
 
 def test_vlm_request_shape_and_parse():
     client, msgs = fake_client([model_output()])
-    coder = VLMCoder(CB, client=client)
+    coder = ClaudeVLMCoder(CB, client=client)
     res = coder.code(scene(1))
     call = msgs.calls[0]
     assert call["model"] == "claude-opus-5-5" and call["fallbacks"] == "default"
@@ -88,7 +88,7 @@ def test_vlm_request_shape_and_parse():
 
 def test_fallback_model_gets_its_own_coder_id():
     client, _ = fake_client([{**model_output(), "_model": "claude-opus-4-8"}])
-    coder = VLMCoder(CB, client=client)
+    coder = ClaudeVLMCoder(CB, client=client)
     res = coder.code(scene(1))
     assert res.motif_codes[0].coder_id.startswith("vlm:claude-opus-4-8:")
     assert res.motif_codes[0].coder_id != coder.coder_id()
@@ -109,7 +109,7 @@ def _stored(tmp_path, n=1):
 def test_run_sync_codes_skips_refusals_and_is_idempotent(tmp_path):
     store = _stored(tmp_path, 2)
     client, msgs = fake_client([model_output(), "refusal"])
-    coder = VLMCoder(CB, client=client)
+    coder = ClaudeVLMCoder(CB, client=client)
     stats = run_sync(store, coder)
     assert stats == {"coded": 1, "refused": 1, "errors": 0}
     client.beta.messages.outputs = [model_output()]
@@ -121,7 +121,7 @@ def test_safety_flag_deletes_bytes_and_excludes(tmp_path):
     store = _stored(tmp_path)
     path = next(store.iter_records()).image.local_path
     client, _ = fake_client([model_output(flag="possible_minor_sexualization")])
-    run_sync(store, VLMCoder(CB, client=client))
+    run_sync(store, ClaudeVLMCoder(CB, client=client))
     r = next(store.iter_records())
     assert not Path(path).exists() and r.image.local_path is None
     assert r.exclusion == "csam_suspected_removed"
@@ -182,3 +182,49 @@ def test_purge_tombstones_and_keeps_shared_bytes(tmp_path, monkeypatch):
     assert Path(shared).exists()  # still referenced by the live record
     rep2 = purgemod.purge(store, session=None)
     assert rep2["reddit"]["checked"] == 1  # tombstoned items are not re-checked
+
+
+class FakeGemini:
+    def __init__(self, responses):
+        self.responses, self.calls = list(responses), []
+
+    def generate_content(self, **kw):
+        self.calls.append(kw)
+        return self.responses.pop(0)
+
+
+def gemini_resp(out=None, finish="STOP", block=None):
+    return SimpleNamespace(
+        model_version="gemini-3.1-pro-preview",
+        prompt_feedback=SimpleNamespace(block_reason=block) if block else None,
+        candidates=[] if block else [SimpleNamespace(finish_reason=SimpleNamespace(name=finish))],
+        text=json.dumps(out) if out else "",
+    )
+
+
+def test_gemini_coder_request_and_blocks():
+    fake = FakeGemini([gemini_resp(model_output(present=("VM04",))), gemini_resp(finish="SAFETY"),
+                       gemini_resp(block=SimpleNamespace(name="PROHIBITED_CONTENT"))])
+    coder = GeminiVLMCoder(CB, client=SimpleNamespace(models=fake))
+    res = coder.code(scene(1))
+    cfg = fake.calls[0]["config"]
+    assert cfg.response_json_schema == response_schema(CB) and cfg.response_mime_type == "application/json"
+    assert cfg.thinking_config.thinking_level.name == "HIGH"
+    assert {c.code_id for c in res.motif_codes if c.present} == {"VM04"}
+    assert res.motif_codes[0].coder_id.startswith("vlm:gemini-3.1-pro-preview:")
+    assert coder.code(scene(1)).refused == "finish:SAFETY"
+    assert coder.code(scene(1)).refused == "blocked:PROHIBITED_CONTENT"
+
+
+def test_provider_settings_change_coder_id():
+    g = GeminiVLMCoder(CB, client=object())
+    c = ClaudeVLMCoder(CB, client=object())
+    assert g.prompt_hash != c.prompt_hash  # provider config is part of the fingerprint
+    assert GeminiVLMCoder(CB, effort="low", client=object()).coder_id() != g.coder_id()
+
+
+def test_batch_rejected_for_gemini(tmp_path):
+    from aibi.coders.vlm_runner import submit_batch
+
+    with pytest.raises(ValueError):
+        submit_batch(_stored(tmp_path), GeminiVLMCoder(CB, client=object()))

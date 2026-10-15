@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111318">
+<title>Swipe Coder</title>
+<style>
+:root {
+  --bg: #f6f6f4; --surface: #ffffff; --text: #17181c; --muted: #6b6e76; --line: #e2e2de;
+  --yes: #1f8a4c; --no: #c23b32; --unsure: #8a6d1f; --accent: #2f5bd3; --shadow: 0 6px 24px rgba(0,0,0,.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111318; --surface: #1b1e25; --text: #eceef2; --muted: #9aa0ab; --line: #2b2f38;
+          --yes: #3fbf74; --no: #ef6a5f; --unsure: #d8b44a; --accent: #7a9cff; --shadow: 0 6px 24px rgba(0,0,0,.5); }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { overscroll-behavior: none; }
+button { font: inherit; color: inherit; }
+.screen { display: none; height: 100dvh; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.screen.on { display: flex; }
+
+/* setup */
+.setup { max-width: 480px; width: 100%; margin: 0 auto; padding: 24px 16px; overflow-y: auto; }
+.setup h1 { font-size: 24px; margin: 8px 0 4px; }
+.setup p { color: var(--muted); margin: 0 0 20px; }
+label.f { display: block; font-weight: 600; margin: 18px 0 6px; }
+input[type=text] { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font-size: 17px; }
+.seg { display: grid; gap: 8px; }
+.seg button { text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+.seg button.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg small { display: block; color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+.check input { width: 20px; height: 20px; }
+.primary { width: 100%; margin-top: 24px; padding: 14px; border: 0; border-radius: 12px;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 17px; }
+.err { color: var(--no); margin-top: 12px; min-height: 1.4em; }
+
+/* coding */
+header { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.prog { flex: 1; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.count { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.icon { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 10px; font-size: 14px; }
+.icon:disabled { opacity: .4; }
+.stage { position: relative; flex: 1; min-height: 0; margin: 4px 12px; }
+.card { position: absolute; inset: 0; background: var(--surface); border-radius: 18px; box-shadow: var(--shadow);
+  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; will-change: transform; }
+.card img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; transition: filter .2s; }
+.card.blur img { filter: blur(28px) saturate(.6); }
+.card .reveal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  color: #fff; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none; }
+.card.blur .reveal { display: flex; }
+.stamp { position: absolute; top: 18px; padding: 6px 12px; border: 3px solid; border-radius: 10px;
+  font-weight: 800; font-size: 22px; letter-spacing: .05em; opacity: 0; pointer-events: none; background: rgba(0,0,0,.25); }
+.stamp.yes { left: 18px; color: var(--yes); transform: rotate(-12deg); }
+.stamp.no { right: 18px; color: var(--no); transform: rotate(12deg); }
+.stamp.unsure { left: 50%; top: auto; bottom: 18px; transform: translateX(-50%); color: var(--unsure); }
+.q { margin: 8px 12px 0; padding: 10px 12px; background: var(--surface); border-radius: 12px; border: 1px solid var(--line);
+  max-height: 30dvh; overflow-y: auto; }
+.q .code { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .03em; }
+.q h2 { margin: 2px 0 4px; font-size: 18px; }
+.q .def { margin: 0; font-size: 15px; }
+.q details { margin-top: 6px; font-size: 14px; color: var(--muted); }
+.q details b { color: var(--text); }
+.actions { display: grid; grid-template-columns: 1fr .8fr 1fr; gap: 10px; padding: 10px 12px 12px; }
+.actions button { padding: 14px 0; border-radius: 14px; border: 2px solid; background: var(--surface); font-weight: 700; font-size: 16px; }
+.b-no { border-color: var(--no) !important; color: var(--no); }
+.b-yes { border-color: var(--yes) !important; color: var(--yes); }
+.b-unsure { border-color: var(--line) !important; color: var(--muted); }
+
+/* affect */
+.affect { margin: 8px 12px 0; padding: 10px 12px; background: var(--surface); border-radius: 12px; border: 1px solid var(--line);
+  max-height: 46dvh; overflow-y: auto; }
+.scale { margin-bottom: 10px; }
+.scale .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 0 2px 4px; gap: 8px; }
+.scale .lab b { color: var(--text); font-size: 14px; }
+.nine { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+.nine button, .chips button { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 9px 0; font-weight: 600; }
+.nine button.sel, .chips button.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { padding: 7px 11px; }
+.sub { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+
+/* overlays */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+.overlay.on { display: flex; }
+.sheet { background: var(--surface); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+.sheet h3 { margin: 0 0 6px; }
+.sheet p { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+.sheet .opt { display: block; width: 100%; text-align: left; padding: 12px; margin: 6px 0; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+.sheet .danger { border-color: var(--no); color: var(--no); font-weight: 700; }
+.zoom { position: fixed; inset: 0; background: #000; z-index: 20; display: none; }
+.zoom.on { display: block; }
+.zoom img { width: 100%; height: 100%; object-fit: contain; }
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
+.toast.on { opacity: .92; }
+.help ul { padding-left: 18px; margin: 0 0 8px; }
+.done { margin: auto; text-align: center; padding: 24px; max-width: 420px; }
+</style>
+</head>
+<body>
+
+<section id="setup" class="screen on">
+  <div class="setup">
+    <h1>Swipe Coder</h1>
+    <p>Code images against the project codebook. Judge only what you see in the image.</p>
+    <label class="f" for="coder">Your coder ID</label>
+    <input id="coder" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. coderA" maxlength="32">
+    <label class="f">Task</label>
+    <div class="seg" id="modes">
+      <button data-mode="bycode" class="sel">Motifs, one code at a time<small>Swipe through every image for a single code, then move to the next code. Fastest and most consistent.</small></button>
+      <button data-mode="byimage">Motifs, one image at a time<small>Answer every code for an image before moving on.</small></button>
+      <button data-mode="affect">Affect &amp; emotion<small>Rate valence and arousal (1–9) and pick the target emotion.</small></button>
+    </div>
+    <label class="check"><input id="blur" type="checkbox" checked> Blur each image until I tap it</label>
+    <button class="primary" id="start">Start</button>
+    <div class="err" id="err"></div>
+  </div>
+</section>
+
+<section id="code" class="screen">
+  <header>
+    <button class="icon" id="back" aria-label="Back to menu">☰</button>
+    <div class="prog"><div class="bar"><i id="barfill"></i></div><div class="count" id="count"></div></div>
+    <button class="icon" id="undo" aria-label="Undo" disabled>↶ Undo</button>
+    <button class="icon" id="report" aria-label="Report image">⚠</button>
+  </header>
+  <div class="stage" id="stage"></div>
+  <div class="q" id="question"></div>
+  <div class="affect" id="affectpanel" hidden></div>
+  <div class="actions" id="actions">
+    <button class="b-no" id="bno">✕ Absent</button>
+    <button class="b-unsure" id="bunsure">? Unsure</button>
+    <button class="b-yes" id="byes">✓ Present</button>
+  </div>
+</section>
+
+<section id="done" class="screen">
+  <div class="done">
+    <h1>All done</h1>
+    <p id="donemsg">Every item in this task is coded. Thank you.</p>
+    <button class="primary" id="donemenu">Back to menu</button>
+  </div>
+</section>
+
+<div class="overlay" id="reportsheet">
+  <div class="sheet">
+    <h3>Report this image</h3>
+    <p>The image is hidden for everyone and removed from coding. Choosing the first option also deletes the stored file immediately.</p>
+    <button class="opt danger" data-reason="possible_minor_sexualization">May sexualize a minor - stop and remove</button>
+    <button class="opt" data-reason="sexualized_real_person">Sexualized depiction of a real person</button>
+    <button class="opt" data-reason="other_harmful">Other harmful content - remove for review</button>
+    <button class="opt" data-reason="">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay help" id="helpsheet">
+  <div class="sheet">
+    <h3>How to code</h3>
+    <ul>
+      <li><b>Swipe right</b> (or →) if the code is <b>present</b></li>
+      <li><b>Swipe left</b> (or ←) if it is <b>absent</b></li>
+      <li><b>Swipe up</b> (or ↑) if you are <b>unsure</b></li>
+      <li>Tap the image to reveal it, then tap again for full screen</li>
+      <li>Undo (or Z) steps back one decision</li>
+      <li>When in doubt, code absent and keep going. Follow the include and exclude notes.</li>
+      <li>⚠ removes disturbing or illegal content. Use it whenever you need to, without hesitation.</li>
+    </ul>
+    <button class="primary" id="helpok">Got it</button>
+  </div>
+</div>
+
+<div class="zoom" id="zoom"><img id="zoomimg" alt=""></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const params = new URLSearchParams(location.search);
+  const TOKEN = params.get("t") || "";
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("swipe:" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("swipe:" + k, JSON.stringify(v)); } catch {} },
+  };
+
+  let S = null;           // session payload from server
+  let mode = store.get("mode", "bycode");
+  let coder = "";
+  let deck = [], pos = 0, history = [];
+  let codeById = {};
+  let affectDraft = {};
+  let busy = false;
+
+  // ---------- network with offline queue ----------
+  let queue = store.get("queue", []);
+  function api(path, opts = {}) {
+    const u = path + (path.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(TOKEN);
+    return fetch(u, { ...opts, headers: { "Content-Type": "application/json", "X-Token": TOKEN, ...(opts.headers || {}) } });
+  }
+  function send(path, body) {
+    queue.push({ path, body }); store.set("queue", queue); flush();
+  }
+  let flushing = false;
+  async function flush() {
+    if (flushing) return; flushing = true;
+    try {
+      while (queue.length) {
+        const { path, body } = queue[0];
+        let r;
+        try { r = await api(path, { method: "POST", body: JSON.stringify(body) }); }
+        catch { toast("Offline - will retry"); setTimeout(flush, 4000); return; }
+        if (!r.ok && r.status >= 500) { setTimeout(flush, 4000); return; }
+        if (!r.ok) toast("Server rejected an answer (" + r.status + ")");
+        queue.shift(); store.set("queue", queue);
+      }
+    } finally { flushing = false; }
+  }
+  window.addEventListener("online", flush);
+
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+    clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove("on"), 1600);
+  }
+  const buzz = (ms = 12) => { try { navigator.vibrate && navigator.vibrate(ms); } catch {} };
+  const imgUrl = (id) => "/img/" + id + "?t=" + encodeURIComponent(TOKEN);
+
+  // ---------- setup ----------
+  $("#coder").value = store.get("coder", "");
+  document.querySelectorAll("#modes button").forEach((b) => {
+    b.classList.toggle("sel", b.dataset.mode === mode);
+    b.onclick = () => { mode = b.dataset.mode; document.querySelectorAll("#modes button").forEach((x) => x.classList.toggle("sel", x === b)); };
+  });
+  $("#blur").checked = store.get("blur", true);
+  if (!TOKEN) $("#err").textContent = "This link has no access token. Use the full link printed by `aibi code-ui`.";
+
+  $("#start").onclick = async () => {
+    coder = $("#coder").value.trim();
+    if (!/^[A-Za-z0-9_-]{1,32}$/.test(coder)) { $("#err").textContent = "Coder ID: 1–32 letters, digits, _ or -"; return; }
+    store.set("coder", coder); store.set("mode", mode); store.set("blur", $("#blur").checked);
+    $("#err").textContent = "Loading…";
+    let r;
+    try { r = await api("/api/session?coder=" + encodeURIComponent(coder)); } catch { $("#err").textContent = "Cannot reach the server."; return; }
+    if (!r.ok) { $("#err").textContent = r.status === 401 ? "Access token rejected." : "Server error " + r.status; return; }
+    S = await r.json();
+    codeById = Object.fromEntries(S.codes.map((c) => [c.id, c]));
+    buildDeck();
+    $("#err").textContent = "";
+    show("code");
+    if (!store.get("helpSeen", false)) { $("#helpsheet").classList.add("on"); }
+    render();
+  };
+  $("#helpok").onclick = () => { $("#helpsheet").classList.remove("on"); store.set("helpSeen", true); };
+
+  function buildDeck() {
+    const done = new Set(S.done_motifs), doneA = new Set(S.done_affect);
+    deck = []; pos = 0; history = [];
+    if (mode === "affect") {
+      S.items.forEach((it) => { if (!doneA.has(it)) deck.push({ item: it }); });
+    } else if (mode === "bycode") {
+      S.codes.forEach((c) => S.items.forEach((it) => { if (!done.has(it + "|" + c.id)) deck.push({ item: it, code: c.id }); }));
+    } else {
+      S.items.forEach((it) => S.codes.forEach((c) => { if (!done.has(it + "|" + c.id)) deck.push({ item: it, code: c.id }); }));
+    }
+    deck.total = mode === "affect" ? S.items.length : S.items.length * S.codes.length;
+    deck.doneBefore = deck.total - deck.length;
+  }
+
+  function show(id) { document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === id)); }
+  $("#back").onclick = () => show("setup");
+  $("#donemenu").onclick = () => show("setup");
+
+  // ---------- rendering ----------
+  function render() {
+    const stage = $("#stage");
+    stage.innerHTML = "";
+    $("#undo").disabled = history.length === 0;
+    const doneN = deck.doneBefore + pos;
+    $("#barfill").style.width = (deck.total ? (100 * doneN / deck.total) : 100) + "%";
+    $("#count").textContent = doneN + " / " + deck.total + (mode === "affect" ? " images" : " decisions");
+    if (pos >= deck.length) { $("#donemsg").textContent = "Every item in this task is coded. Thank you, " + coder + "."; show("done"); return; }
+    const card = deck[pos];
+    const el = document.createElement("div");
+    el.className = "card" + ($("#blur").checked ? " blur" : "");
+    el.innerHTML = '<img alt="Image to code" draggable="false"><div class="reveal">Tap to reveal</div>' +
+      (mode === "affect" ? "" : '<div class="stamp yes">PRESENT</div><div class="stamp no">ABSENT</div><div class="stamp unsure">UNSURE</div>');
+    el.querySelector("img").src = imgUrl(card.item);
+    stage.appendChild(el);
+    attachGestures(el);
+    prefetch();
+    const isAffect = mode === "affect";
+    $("#question").hidden = isAffect;
+    $("#affectpanel").hidden = !isAffect;
+    $("#actions").style.gridTemplateColumns = isAffect ? "1fr" : "";
+    $("#bno").hidden = isAffect; $("#bunsure").hidden = isAffect;
+    $("#byes").textContent = isAffect ? "Save & next →" : "✓ Present";
+    if (isAffect) renderAffect(); else renderQuestion(codeById[card.code]);
+  }
+
+  function renderQuestion(c) {
+    const esc = (s) => (s || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    $("#question").innerHTML =
+      '<div class="code">' + esc(c.id) + (c.layer === "persuasion_technique" ? " · persuasion technique" : " · visual motif") + "</div>" +
+      "<h2>" + esc(c.name) + "?</h2><p class='def'>" + esc(c.definition) + "</p>" +
+      (c.include || c.exclude ? "<details><summary>Include / exclude</summary>" +
+        (c.include ? "<p><b>Include:</b> " + esc(c.include) + "</p>" : "") +
+        (c.exclude ? "<p><b>Exclude:</b> " + esc(c.exclude) + "</p>" : "") + "</details>" : "") +
+      (c.modality === "text" ? "<details open><summary>Note</summary><p>Code present only if text embedded in the image carries this technique.</p></details>" : "");
+  }
+
+  function renderAffect() {
+    affectDraft = { valence: null, arousal: null, dominance: null, primary_emotion: null, secondary_emotion: null };
+    const A = S.affect_anchors, P = $("#affectpanel");
+    P.innerHTML = "<p class='sub' style='margin-top:0'>Rate the response this image is designed to provoke in a typical adult viewer.</p>";
+    [["valence", true], ["arousal", true], ["dominance", false]].forEach(([dim, req]) => {
+      const a = A[dim] || {};
+      const box = document.createElement("div"); box.className = "scale";
+      box.innerHTML = "<div class='lab'><span>" + (a[1] || "1") + "</span><b>" + dim + (req ? "" : " (optional)") + "</b><span>" + (a[9] || "9") + "</span></div><div class='nine'></div>";
+      const nine = box.querySelector(".nine");
+      for (let i = 1; i <= 9; i++) {
+        const b = document.createElement("button"); b.textContent = i;
+        b.onclick = () => { affectDraft[dim] = affectDraft[dim] === i && !req ? null : i; nine.querySelectorAll("button").forEach((x, j) => x.classList.toggle("sel", affectDraft[dim] === j + 1)); buzz(6); };
+        nine.appendChild(b);
+      }
+      P.appendChild(box);
+    });
+    [["primary_emotion", "Primary emotion"], ["secondary_emotion", "Secondary emotion (optional)"]].forEach(([k, label]) => {
+      const h = document.createElement("div"); h.className = "sub"; h.textContent = label; P.appendChild(h);
+      const chips = document.createElement("div"); chips.className = "chips";
+      S.emotions.forEach((e) => {
+        const b = document.createElement("button"); b.textContent = e;
+        b.onclick = () => { affectDraft[k] = affectDraft[k] === e ? null : e; chips.querySelectorAll("button").forEach((x) => x.classList.toggle("sel", x.textContent === affectDraft[k])); buzz(6); };
+        chips.appendChild(b);
+      });
+      P.appendChild(chips);
+    });
+  }
+
+  function prefetch() {
+    for (let i = pos + 1; i < Math.min(deck.length, pos + 4); i++) {
+      if (deck[i].item !== deck[pos].item) { const im = new Image(); im.src = imgUrl(deck[i].item); }
+    }
+  }
+
+  // ---------- decisions ----------
+  function decide(value, el) {
+    if (busy || pos >= deck.length) return;
+    const card = deck[pos];
+    if (mode === "affect") {
+      const d = affectDraft;
+      if (!d.valence || !d.arousal || !d.primary_emotion) { toast("Rate valence and arousal, and pick a primary emotion"); snapBack(el); return; }
+      send("/api/affect", { coder, item: card.item, value: { ...d } });
+    } else {
+      send("/api/motif", { coder, item: card.item, code: card.code, value });
+    }
+    buzz();
+    history.push(pos);
+    busy = true;
+    flyOut(el || $("#stage .card"), value, () => { busy = false; pos++; render(); });
+  }
+
+  $("#byes").onclick = () => decide(1);
+  $("#bno").onclick = () => decide(0);
+  $("#bunsure").onclick = () => decide("unsure");
+
+  $("#undo").onclick = undo;
+  function undo() {
+    if (busy || !history.length) return;
+    pos = history.pop();
+    const card = deck[pos];
+    if (mode === "affect") send("/api/affect", { coder, item: card.item, value: null });
+    else send("/api/motif", { coder, item: card.item, code: card.code, value: null });
+    toast("Undone"); render();
+  }
+
+  // ---------- report ----------
+  $("#report").onclick = () => $("#reportsheet").classList.add("on");
+  document.querySelectorAll("#reportsheet .opt").forEach((b) => b.onclick = () => {
+    $("#reportsheet").classList.remove("on");
+    const reason = b.dataset.reason;
+    if (!reason || pos >= deck.length) return;
+    const item = deck[pos].item;
+    send("/api/flag", { coder, item, reason });
+    const before = deck.length;
+    deck = Object.assign(deck.filter((c, i) => i < pos || c.item !== item), { total: deck.total, doneBefore: deck.doneBefore });
+    deck.total -= (before - deck.length);
+    history = history.filter((h) => h < pos);
+    toast("Image removed"); render();
+  });
+
+  // ---------- gestures ----------
+  function attachGestures(el) {
+    let x0 = 0, y0 = 0, t0 = 0, dx = 0, dy = 0, active = false, id = null;
+    const yes = el.querySelector(".stamp.yes"), no = el.querySelector(".stamp.no"), un = el.querySelector(".stamp.unsure");
+    const th = () => Math.min(110, el.clientWidth * 0.25);
+    el.addEventListener("pointerdown", (e) => {
+      if (busy) return;
+      active = true; id = e.pointerId; x0 = e.clientX; y0 = e.clientY; t0 = performance.now(); dx = dy = 0;
+      el.setPointerCapture(id); el.style.transition = "none";
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!active || e.pointerId !== id) return;
+      dx = e.clientX - x0; dy = e.clientY - y0;
+      if (mode === "affect") dy = 0;
+      el.style.transform = "translate(" + dx + "px," + Math.min(dy, 40) + "px) rotate(" + (dx / 22) + "deg)";
+      if (yes) {
+        const t = th();
+        yes.style.opacity = Math.max(0, Math.min(1, dx / t));
+        no.style.opacity = Math.max(0, Math.min(1, -dx / t));
+        un.style.opacity = Math.abs(dy) > Math.abs(dx) ? Math.max(0, Math.min(1, -dy / t)) : 0;
+      }
+    });
+    const end = (e) => {
+      if (!active || e.pointerId !== id) return;
+      active = false;
+      const dt = performance.now() - t0, t = th();
+      const vx = dx / Math.max(dt, 1);
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 350) { snapBack(el); return tap(el); }
+      if (mode === "affect") {
+        if (dx > t || vx > 0.7) return decide(null, el);
+        return snapBack(el);
+      }
+      if (-dy > t && Math.abs(dy) > Math.abs(dx)) return decide("unsure", el);
+      if (dx > t || (vx > 0.7 && dx > 40)) return decide(1, el);
+      if (dx < -t || (vx < -0.7 && dx < -40)) return decide(0, el);
+      snapBack(el);
+    };
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+  }
+  function snapBack(el) {
+    if (!el) return;
+    el.style.transition = "transform .25s cubic-bezier(.2,.8,.2,1)";
+    el.style.transform = "";
+    el.querySelectorAll(".stamp").forEach((s) => s.style.opacity = 0);
+  }
+  function flyOut(el, value, cb) {
+    if (!el) return cb();
+    const w = window.innerWidth * 1.3;
+    const to = value === "unsure" ? "translate(0,-120vh)" : (value === 0 ? "translate(" + -w + "px,0) rotate(-20deg)" : "translate(" + w + "px,0) rotate(20deg)");
+    const stamp = el.querySelector(value === "unsure" ? ".stamp.unsure" : value === 0 ? ".stamp.no" : ".stamp.yes");
+    if (stamp) stamp.style.opacity = 1;
+    el.style.transition = "transform .22s ease-in";
+    el.style.transform = to;
+    setTimeout(cb, 200);
+  }
+  function tap(el) {
+    if (el.classList.contains("blur")) { el.classList.remove("blur"); return; }
+    $("#zoomimg").src = el.querySelector("img").src; $("#zoom").classList.add("on");
+  }
+  $("#zoom").onclick = () => $("#zoom").classList.remove("on");
+
+  document.addEventListener("keydown", (e) => {
+    if (!$("#code").classList.contains("on") || e.target.tagName === "INPUT") return;
+    const el = $("#stage .card");
+    if (e.key === "ArrowRight") decide(mode === "affect" ? null : 1, el);
+    else if (mode !== "affect" && e.key === "ArrowLeft") decide(0, el);
+    else if (mode !== "affect" && e.key === "ArrowUp") decide("unsure", el);
+    else if (e.key === "z" || e.key === "Backspace") undo();
+    else if (e.key === " " && el) { e.preventDefault(); tap(el); }
+    else if (e.key === "Escape") $("#zoom").classList.remove("on");
+  });
+
+  flush();
+})();
+</script>
+</body>
+</html>

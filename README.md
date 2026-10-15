@@ -49,8 +49,10 @@ aibi cluster                               # near-duplicate clusters across plat
 aibi sheet --out coderA.csv --sample 200   # blank human coding sheet
 aibi import-codes coderA.csv --coder-id A
 aibi reliability coderA.csv coderB.csv     # Krippendorff's alpha per variable
-aibi code-vlm --limit 20                   # model coder, synchronous (pip install -e ".[vlm]"; needs Anthropic credentials)
-aibi code-vlm --batch                      # same coder through the Message Batches API at 50% cost; prints a batch_id
+aibi code-ui --sample 200                  # swipe-to-code web app for human coders' phones (see below)
+aibi ui-export                             # coder logs -> data/coding/sheets/<coder>.csv
+aibi code-vlm --limit 20                   # model coder; Gemini by default (pip install -e ".[gemini]"; GEMINI_API_KEY)
+aibi code-vlm --provider anthropic --batch # Claude through the Message Batches API at 50% cost (".[vlm]"); prints a batch_id
 aibi vlm-collect <batch_id> --wait --retry-sync
 aibi calibrate --coder-id <id> --write --apply   # validate against human gold; writes codebook/thresholds.json
 aibi purge                                 # remove items deleted at source; run before analysis or release
@@ -58,6 +60,19 @@ aibi filter --out filtered.csv             # Filter 1 + Filter 2 metrics per ima
 ```
 
 Model-coder codes count only after `aibi calibrate` validates them (METHODOLOGY §4.3). Read `docs/ETHICS_AND_LEGAL.md` §2a before sending images to an API.
+
+## Hand coding on a phone
+
+`aibi code-ui` prints a link containing an access token, e.g. `http://192.168.1.20:8765/?t=…`. Open it on any phone on the same network.
+
+- **Answering.** Each card shows one image and one code. Swipe right for present, left for absent, up for unsure. Buttons and the arrow keys do the same on a laptop.
+  - **Order:** the default "one code at a time" order runs a single code across every image.
+  - **Affect pass:** a separate pass for the 1–9 valence and arousal ratings and the target emotion, entered by tapping.
+- **What coders see.** Images are blurred until tapped. Coders never see the caption, platform or engagement numbers.
+- **Undo and resuming.** Undo always works, and coders can resume where they left off. Every decision is appended to `data/coding/<coder>.jsonl`.
+- **Report button (⚠).** Hides an image for everyone. Choosing "may sexualize a minor" also deletes the file immediately.
+- **Same sample for everyone.** Every coder gets the same seeded sample, so the results can be used for double-coding. `aibi ui-export` writes standard coding sheets for `aibi import-codes` and `aibi reliability`.
+- **Remote coders.** The server is plain HTTP and is meant for a trusted local network. For coders elsewhere, put it behind a VPN or an HTTPS tunnel instead of exposing the port.
 
 ## Development
 
