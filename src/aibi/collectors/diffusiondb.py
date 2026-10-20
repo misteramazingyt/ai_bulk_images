@@ -22,6 +22,7 @@ import random
 import re
 import shutil
 import threading
+import time
 import zipfile
 from functools import lru_cache
 from pathlib import Path
@@ -55,6 +56,7 @@ class DiffusionDBCollector(Collector):
         super().__init__(*a, **kw)
         self.cache_dir = Path(self.frame.params.get("cache_dir", "data/cache"))
         self._local_parts: dict[str, Path] = {}
+        self.notes: dict = {"parts_used": [], "parts_skipped": {}}
 
     def _metadata(self) -> pd.DataFrame:
         cache = self.cache_dir / "diffusiondb_metadata.parquet"
@@ -63,14 +65,24 @@ class DiffusionDBCollector(Collector):
             self._download(f"{HF}/metadata.parquet", cache)
         return pd.read_parquet(cache)
 
-    def _download(self, url: str, dest: Path) -> None:
+    def _download(self, url: str, dest: Path, attempts: int = 3) -> None:
+        """Stream to a temp file; retry mid-transfer failures; never leave partial files."""
         tmp = dest.with_suffix(dest.suffix + ".part")
-        r = self.session.get(url, stream=True, timeout=600)
-        r.raise_for_status()
-        with tmp.open("wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-        tmp.replace(dest)
+        for attempt in range(1, attempts + 1):
+            try:
+                r = self.session.get(url, stream=True, timeout=600)
+                r.raise_for_status()
+                with tmp.open("wb") as f:
+                    for chunk in r.iter_content(1 << 20):
+                        f.write(chunk)
+                tmp.replace(dest)
+                return
+            except Exception as e:
+                tmp.unlink(missing_ok=True)
+                if attempt == attempts:
+                    raise
+                log.warning("download %s failed (attempt %d/%d): %r - retrying", url, attempt, attempts, e)
+                time.sleep(5 * attempt)
 
     def _eligible(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df[df["user_name"].notna()]  # rows with None were deleted by their creators
@@ -168,8 +180,10 @@ class DiffusionDBCollector(Collector):
                 prefetch = (order[i + 1], nt, nbox)
             if "error" in box:
                 log.error("part %06d download failed: %r - skipping", part, box["error"])
+                self.notes["parts_skipped"][f"{part:06d}"] = repr(box["error"])[:300]
                 continue
             key = f"{part:06d}"
+            self.notes["parts_used"].append(key)
             self._local_parts[key] = box["path"]
             self._zip.cache_clear()
             log.info("part %06d: %d eligible images (%d collected so far)", part, len(by_part[part]), n)

@@ -82,3 +82,52 @@ def test_store_appends_without_rewrite(tmp_path, monkeypatch):
     monkeypatch.undo()
     store.upsert([rec("a")])  # existing id: merge path
     assert sorted(store.load("reddit")) == ["a", "b", "c"]
+
+
+def test_failed_part_is_skipped_and_recorded(tmp_path):
+    c, downloads = make_collector(tmp_path, limit=100)
+    real = c._download
+
+    def flaky(url, dest):
+        if "part-000001" in url:
+            raise ConnectionResetError("reset by peer")
+        real(url, dest)
+
+    c._download = flaky
+    store, counts = Store(tmp_path / "data"), Counter()
+    recs = [r for r in c.collect() if fetch_one(c, r, store, counts) is None]
+    assert len(recs) == 6
+    assert c.notes["parts_used"] == ["000003", "000002"] and "000001" in c.notes["parts_skipped"]
+
+
+def test_download_retries_and_cleans_partial(tmp_path, monkeypatch):
+    import aibi.collectors.diffusiondb as mod
+
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    calls = []
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, n):
+            yield b"partial"
+            if len(calls) < 3:
+                raise ConnectionResetError("reset")
+            yield b"-done"
+
+    frame = Frame(frame_id="t", source="diffusiondb", corpus=Corpus.GENERATION, params={"cache_dir": str(tmp_path)})
+    c = DiffusionDBCollector(frame, session=SimpleNamespace(get=lambda *a, **k: calls.append(1) or Resp()))
+    dest = tmp_path / "x.zip"
+    c._download("u", dest)
+    assert dest.read_bytes() == b"partial-done" and len(calls) == 3
+
+    class Bad(Resp):
+        def iter_content(self, n):
+            yield b"x"
+            raise ConnectionResetError("reset")
+
+    c.session = SimpleNamespace(get=lambda *a, **k: Bad())
+    with pytest.raises(ConnectionResetError):
+        c._download("u", tmp_path / "y.zip")
+    assert not list(tmp_path.glob("*.part"))

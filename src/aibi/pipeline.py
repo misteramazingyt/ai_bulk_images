@@ -61,7 +61,8 @@ def collect(cfg: dict, store: Store, frame_ids: list[str] | None = None, fetch: 
         store.upsert(batch)
         manifest["frames"].append({"frame_id": frame.frame_id, "source": frame.source, "corpus": frame.corpus.value,
                                    "params": frame.params, "limit": frame.limit, "seed": frame.seed,
-                                   "collector_version": collector.version, "counts": dict(counts)})
+                                   "collector_version": collector.version, "counts": dict(counts),
+                                   **({"notes": collector.notes} if getattr(collector, "notes", None) else {})})
     manifest["finished_at"] = utcnow()
     store.write_manifest(run_id, manifest)
     return manifest
