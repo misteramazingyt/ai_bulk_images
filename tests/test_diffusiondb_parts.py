@@ -26,7 +26,7 @@ def fake_metadata(parts=(1, 2, 3), per_part=4):
 
 def make_collector(tmp_path, limit, **params):
     frame = Frame(frame_id="G-test", source="diffusiondb", corpus=Corpus.GENERATION, limit=limit, seed=3,
-                  params={"mode": "parts", "cache_dir": str(tmp_path / "cache"), **params})
+                  params={"mode": "parts", "cache_dir": str(tmp_path / "cache"), "min_free_gb": 0, **params})
     c = DiffusionDBCollector(frame, session=SimpleNamespace())
     c._metadata = lambda: fake_metadata()
     downloads = []
@@ -70,7 +70,7 @@ def test_parts_mode_respects_limit(tmp_path):
 def test_disk_guard_stops_cleanly_and_removes_prefetch(tmp_path, monkeypatch):
     import aibi.collectors.diffusiondb as mod
 
-    c, downloads = make_collector(tmp_path, limit=100)
+    c, downloads = make_collector(tmp_path, limit=100, min_free_gb=1)
     real = mod.shutil.disk_usage
     calls = {"n": 0}
 
