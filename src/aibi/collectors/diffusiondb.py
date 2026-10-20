@@ -148,7 +148,10 @@ class DiffusionDBCollector(Collector):
         parts_dir = self.cache_dir / "parts"
         parts_dir.mkdir(parents=True, exist_ok=True)
         by_part = {int(k): g for k, g in df.groupby("part_id")}
-        order = [p for p in self.part_order() if p in by_part]
+        # exclude_parts lets a continuation run resume the same seeded order
+        # without re-collecting parts an earlier run already took.
+        excluded = {int(p) for p in self.frame.params.get("exclude_parts", [])}
+        order = [p for p in self.part_order() if p in by_part and p not in excluded]
 
         def fetch(part: int, box: dict) -> None:
             dest = parts_dir / f"part-{part:06d}.zip"

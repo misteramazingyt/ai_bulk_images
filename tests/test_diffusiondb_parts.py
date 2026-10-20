@@ -131,3 +131,10 @@ def test_download_retries_and_cleans_partial(tmp_path, monkeypatch):
     with pytest.raises(ConnectionResetError):
         c._download("u", tmp_path / "y.zip")
     assert not list(tmp_path.glob("*.part"))
+
+
+def test_exclude_parts_continues_order(tmp_path):
+    c, downloads = make_collector(tmp_path, limit=100, exclude_parts=["000003", 2])
+    store, counts = Store(tmp_path / "data"), Counter()
+    recs = [r for r in c.collect() if fetch_one(c, r, store, counts) is None]
+    assert downloads == [1] and len(recs) == 3
