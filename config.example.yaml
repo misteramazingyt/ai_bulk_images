@@ -19,6 +19,16 @@ frames:
       mode: prescreen+random       # half lexicon-prescreened, half random comparison
       max_nsfw: 0.5
 
+  - frame_id: G-diffusiondb-parts-30k
+    source: diffusiondb
+    corpus: G
+    limit: 30000
+    seed: 20261020
+    params:
+      mode: parts                  # cluster sample of whole part-zips (~10-20k images/hour)
+      max_nsfw: 0.5
+      min_free_gb: 4               # stop before the disk fills
+
   - frame_id: C-reddit-ai-subs-new
     source: reddit
     corpus: C
