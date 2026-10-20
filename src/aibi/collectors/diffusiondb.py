@@ -167,7 +167,12 @@ class DiffusionDBCollector(Collector):
         for i, part in enumerate(order):
             if n >= self.frame.limit:
                 break
-            self._check_disk()
+            try:
+                self._check_disk()
+            except DiskSpaceLow as e:  # planned stop, not a failure
+                log.info("%s", e)
+                self.notes["stopped"] = str(e)
+                break
             if prefetch is None:
                 box: dict = {}
                 t = threading.Thread(target=fetch, args=(part, box), daemon=True)
@@ -200,7 +205,7 @@ class DiffusionDBCollector(Collector):
             self._zip.cache_clear()
             if not self.frame.params.get("keep_zips", False):
                 box["path"].unlink(missing_ok=True)
-        if prefetch is not None:  # limit reached with a download in flight
+        if prefetch is not None:  # stopped with a download in flight
             prefetch[1].join()
             if "path" in prefetch[2] and not self.frame.params.get("keep_zips", False):
                 prefetch[2]["path"].unlink(missing_ok=True)

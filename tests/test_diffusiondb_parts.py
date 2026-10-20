@@ -67,10 +67,24 @@ def test_parts_mode_respects_limit(tmp_path):
     assert len(recs) == 4 and downloads == [3, 1]
 
 
-def test_disk_guard(tmp_path, monkeypatch):
-    c, _ = make_collector(tmp_path, limit=100, min_free_gb=10**6)
-    with pytest.raises(DiskSpaceLow):
-        next(iter(c.collect()))
+def test_disk_guard_stops_cleanly_and_removes_prefetch(tmp_path, monkeypatch):
+    import aibi.collectors.diffusiondb as mod
+
+    c, downloads = make_collector(tmp_path, limit=100)
+    real = mod.shutil.disk_usage
+    calls = {"n": 0}
+
+    def usage(path):  # plenty of space for the first part, then "full"
+        calls["n"] += 1
+        u = real(path)
+        return u if calls["n"] == 1 else u._replace(free=0)
+
+    monkeypatch.setattr(mod.shutil, "disk_usage", usage)
+    store, counts = Store(tmp_path / "data"), Counter()
+    recs = [r for r in c.collect() if fetch_one(c, r, store, counts) is None]
+    assert len(recs) == 3 and downloads == [3, 1]  # part 1 was prefetched before the stop
+    assert "stopped" in c.notes and issubclass(DiskSpaceLow, RuntimeError)
+    assert not list((tmp_path / "cache" / "parts").glob("*.zip"))  # prefetched zip cleaned up
 
 
 def test_store_appends_without_rewrite(tmp_path, monkeypatch):
